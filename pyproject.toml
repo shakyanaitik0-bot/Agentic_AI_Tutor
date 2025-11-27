@@ -1,0 +1,65 @@
+[project]
+name = "agentic-tutor"
+version = "0.1.0"
+description = "Agentic AI Tutor for Adaptive Learning in EdTech"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    # Web Framework
+    "fastapi>=0.109.0",
+    "uvicorn[standard]>=0.27.0",
+    
+    # Database
+    "sqlalchemy>=2.0.25",
+    "alembic>=1.13.1",
+    
+    # Validation & Config
+    "pydantic>=2.5.3",
+    "pydantic-settings>=2.1.0",
+    "python-dotenv>=1.0.0",
+    
+    # LLM & AI
+    "openai>=1.10.0",
+    "google-generativeai>=0.3.2",
+    
+    # Vector Database
+    "pinecone-client>=3.0.0",
+    
+    # Document Processing
+    "pypdf>=4.0.0",
+    "python-multipart>=0.0.6",
+    
+    # Utilities
+    "aiofiles>=23.2.1",
+    "tiktoken>=0.5.2",
+    "requests>=2.31.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.4",
+    "pytest-asyncio>=0.23.3",
+    "httpx>=0.26.0",
+    "black>=24.1.0",
+    "ruff>=0.1.14",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+select = ["E", "F", "I"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+asyncio_mode = "auto"
