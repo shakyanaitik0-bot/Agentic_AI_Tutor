@@ -33,6 +33,9 @@ dependencies = [
     "aiofiles>=23.2.1",
     "tiktoken>=0.5.2",
     "requests>=2.31.0",
+
+    # Security & Encryption
+    "cryptography>=41.0.0",
 ]
 
 [project.optional-dependencies]

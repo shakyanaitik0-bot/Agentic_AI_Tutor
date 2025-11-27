@@ -250,21 +250,21 @@ def print_database_summary(db):
     print("\n" + "="*60)
     print("DATABASE INITIALIZATION COMPLETE")
     print("="*60)
-    print(f"📊 Students:        {student_count}")
-    print(f"💬 Sessions:        {session_count}")
-    print(f"💌 Messages:        {message_count}")
-    print(f"📈 Progress Records: {progress_count}")
+    print(f"STATS: Students:        {student_count}")
+    print(f" Sessions:        {session_count}")
+    print(f" Messages:        {message_count}")
+    print(f" Progress Records: {progress_count}")
 
     # Show student details
     students = db.query(Student).all()
-    print(f"\n👥 STUDENTS:")
+    print(f"\n STUDENTS:")
     for student in students:
         print(f"   • {student.name} ({student.exam_type}) - {student.email}")
         weak_count = len(student.weak_areas or [])
         strong_count = len(student.strong_areas or [])
         print(f"     Weak areas: {weak_count}, Strong areas: {strong_count}")
 
-    print(f"\n📁 Database file: {os.getenv('DATABASE_URL', 'sqlite:///./data/tutor_app.db')}")
+    print(f"\n Database file: {os.getenv('DATABASE_URL', 'sqlite:///./data/tutor_app.db')}")
     print("="*60)
 
 def main():
@@ -310,7 +310,7 @@ Examples:
         print("=" * 50)
 
         if args.reset:
-            print("⚠️  WARNING: This will delete all existing data!")
+            print("WARNING:  WARNING: This will delete all existing data!")
             response = input("Continue? (yes/no): ").lower().strip()
             if response not in ['yes', 'y']:
                 print("Aborted.")
@@ -318,21 +318,21 @@ Examples:
 
         # Create tables
         if not create_tables(drop_existing=args.reset):
-            print("❌ Database initialization failed!")
+            print("ERROR: Database initialization failed!")
             sys.exit(1)
 
         # Seed sample data if requested
         if args.seed:
             seed_sample_data()
         else:
-            print("\n✅ Database tables created successfully!")
-            print("💡 Use --seed flag to add sample data for development")
+            print("\nSUCCESS: Database tables created successfully!")
+            print("TIP: Use --seed flag to add sample data for development")
 
-        print("\n🚀 Database is ready for the Agentic AI Tutor!")
+        print("\nREADY: Database is ready for the Agentic AI Tutor!")
 
     except Exception as e:
         logger.error(f"Database initialization failed: {e}")
-        print(f"\n❌ Error: {e}")
+        print(f"\nERROR: Error: {e}")
         sys.exit(1)
 
 if __name__ == "__main__":

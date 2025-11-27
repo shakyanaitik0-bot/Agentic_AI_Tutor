@@ -183,7 +183,7 @@ class Session(Base):
                 "role": message.role,
                 "content": message.content,
                 "timestamp": message.timestamp.isoformat(),
-                "metadata": message.metadata or {}
+                "metadata": message.message_metadata or {}
             })
 
         return context
@@ -221,14 +221,14 @@ class Message(Base):
     topic = Column(String(100), nullable=True, index=True)  # Related topic if identified
 
     # Additional metadata (JSON for flexibility)
-    metadata = Column(JSON, nullable=True, default=dict)  # Agent info, confidence, etc.
+    message_metadata = Column(JSON, nullable=True, default=dict)  # Agent info, confidence, etc.
 
     def __init__(self, **kwargs):
-        """Initialize message with default metadata"""
+        """Initialize message with default message metadata"""
         super().__init__(**kwargs)
 
-        if not self.metadata:
-            self.metadata = {}
+        if not self.message_metadata:
+            self.message_metadata = {}
 
     @classmethod
     def create_user_message(
@@ -237,7 +237,7 @@ class Message(Base):
         content: str,
         message_type: str = "chat",
         topic: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None
+        message_metadata: Optional[Dict[str, Any]] = None
     ) -> 'Message':
         """
         Create a new user message.
@@ -247,7 +247,7 @@ class Message(Base):
             content: User's message content
             message_type: Type of message (chat, question, etc.)
             topic: Related topic if known
-            metadata: Additional metadata
+            message_metadata: Additional metadata
 
         Returns:
             Message: New user message instance
@@ -258,7 +258,7 @@ class Message(Base):
             content=content,
             message_type=message_type,
             topic=topic,
-            metadata=metadata or {}
+            message_metadata=message_metadata or {}
         )
 
     @classmethod
@@ -269,7 +269,7 @@ class Message(Base):
         message_type: str = "response",
         topic: Optional[str] = None,
         agent_info: Optional[Dict[str, Any]] = None,
-        metadata: Optional[Dict[str, Any]] = None
+        message_metadata: Optional[Dict[str, Any]] = None
     ) -> 'Message':
         """
         Create a new assistant message.
@@ -280,12 +280,12 @@ class Message(Base):
             message_type: Type of message (response, explanation, etc.)
             topic: Related topic
             agent_info: Information about which agents were used
-            metadata: Additional metadata
+            message_metadata: Additional metadata
 
         Returns:
             Message: New assistant message instance
         """
-        message_metadata = metadata or {}
+        message_metadata = message_metadata or {}
         if agent_info:
             message_metadata["agent_info"] = agent_info
 
@@ -295,7 +295,7 @@ class Message(Base):
             content=content,
             message_type=message_type,
             topic=topic,
-            metadata=message_metadata
+            message_metadata=message_metadata
         )
 
     def add_agent_metadata(self, agent_name: str, agent_data: Dict[str, Any]) -> None:
@@ -306,13 +306,13 @@ class Message(Base):
             agent_name: Name of the agent (planner, retriever, etc.)
             agent_data: Agent-specific data (confidence, sources, etc.)
         """
-        if not self.metadata:
-            self.metadata = {}
+        if not self.message_metadata:
+            self.message_metadata = {}
 
-        if "agents_used" not in self.metadata:
-            self.metadata["agents_used"] = {}
+        if "agents_used" not in self.message_metadata:
+            self.message_metadata["agents_used"] = {}
 
-        self.metadata["agents_used"][agent_name] = agent_data
+        self.message_metadata["agents_used"][agent_name] = agent_data
 
     def get_word_count(self) -> int:
         """

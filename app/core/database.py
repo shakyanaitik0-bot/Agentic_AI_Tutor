@@ -3,7 +3,7 @@ Database configuration and connection management for Agentic AI Tutor.
 Uses SQLAlchemy 2.0 with SQLite backend.
 """
 import os
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
 from sqlalchemy.pool import StaticPool
 import logging
@@ -94,7 +94,7 @@ def check_db_connection():
     """
     try:
         with engine.connect() as connection:
-            connection.execute("SELECT 1")
+            connection.execute(text("SELECT 1"))
         return True
     except Exception as e:
         logger.error(f"Database connection check failed: {e}")
