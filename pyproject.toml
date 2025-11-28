@@ -21,6 +21,8 @@ dependencies = [
     # LLM & AI
     "openai>=1.10.0",
     "google-generativeai>=0.3.2",
+    "sentence-transformers>=2.2.2",
+    "torch>=2.0.0",  # Required for sentence-transformers
     
     # Vector Database
     "pinecone-client>=3.0.0",

@@ -32,11 +32,13 @@ class Settings(BaseSettings):
     )
     default_openai_api_key: Optional[str] = Field(
         default=None,
-        description="Default OpenAI API key (from .env, optional)"
+        description="Default OpenAI API key (from .env, optional)",
+        validation_alias="OPENAI_API_KEY"
     )
     default_gemini_api_key: Optional[str] = Field(
         default=None,
-        description="Default Gemini API key (from .env, optional)"
+        description="Default Gemini API key (from .env, optional)",
+        validation_alias="GEMINI_API_KEY"
     )
     secret_key: str = Field(
         default="your-secret-key-change-in-production",

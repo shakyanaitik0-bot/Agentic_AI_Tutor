@@ -1,59 +1,99 @@
 """
 Embedding Service for Agentic AI Tutor.
-Generates vector embeddings using OpenAI's embedding models for RAG.
+Supports both OpenAI embeddings (paid) and Sentence Transformers (free, local).
 """
 import time
 import logging
-from typing import List, Optional, Dict, Any
-from openai import OpenAI, OpenAIError
+from typing import List, Optional, Dict, Any, Literal
+from dotenv import load_dotenv
+
+load_dotenv()
 
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
+# Type alias for embedding provider
+EmbeddingProvider = Literal["openai", "sentence-transformers"]
+
 
 class EmbeddingService:
     """
-    Service for generating text embeddings using OpenAI.
+    Unified embedding service supporting multiple providers.
+
+    Providers:
+    - OpenAI: High quality, requires API key and credits (PAID)
+    - Sentence Transformers: Good quality, runs locally, completely free (FREE)
 
     Features:
     - Batch embedding generation for efficiency
-    - Automatic retry with exponential backoff
-    - Token counting and cost tracking
-    - Support for different embedding models
+    - Automatic retry with exponential backoff (OpenAI)
+    - Cost estimation (OpenAI)
+    - GPU acceleration support (Sentence Transformers)
     """
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
+        provider: Optional[EmbeddingProvider] = None,
         model: Optional[str] = None
     ):
         """
         Initialize embedding service.
 
         Args:
-            api_key: OpenAI API key. If None, uses config default.
-            model: Embedding model name. If None, uses config default.
+            provider: Embedding provider ("openai" or "sentence-transformers"). Defaults to config.
+            model: Model name. If None, uses provider defaults from config.
 
         Raises:
-            ValueError: If API key is missing
+            ValueError: If provider is invalid or requirements are missing
         """
-        self.api_key = api_key or settings.default_openai_api_key
-        self.model = model or settings.embedding_model
+        self.provider = provider or settings.get("embeddings.provider", "sentence-transformers")
+        self.batch_size = settings.get("embeddings.batch_size", 100)
 
-        if not self.api_key:
+        # Initialize provider-specific client
+        if self.provider == "openai":
+            self._init_openai(model)
+        elif self.provider == "sentence-transformers":
+            self._init_sentence_transformers(model)
+        else:
+            raise ValueError(f"Invalid provider: {self.provider}. Must be 'openai' or 'sentence-transformers'")
+
+        logger.info(f"Embedding service initialized: provider={self.provider}, model={self.model}, dimension={self.get_embedding_dimension()}")
+
+    def _init_openai(self, model: Optional[str]):
+        """Initialize OpenAI embedding client"""
+        try:
+            from openai import OpenAI, OpenAIError
+            self.OpenAIError = OpenAIError
+        except ImportError:
+            raise ImportError("OpenAI package not installed. Run: pip install openai")
+
+        self.model = model or settings.get("embeddings.openai_model", "text-embedding-3-small")
+        api_key = settings.default_openai_api_key
+
+        if not api_key:
             raise ValueError("No OpenAI API key provided for embedding service")
 
-        # Initialize OpenAI client
         self.client = OpenAI(
-            api_key=self.api_key,
+            api_key=api_key,
             timeout=settings.get("embeddings.timeout", 30)
         )
 
-        # Get batch size from config
-        self.batch_size = settings.get("embeddings.batch_size", 100)
+    def _init_sentence_transformers(self, model: Optional[str]):
+        """Initialize Sentence Transformers model"""
+        try:
+            from sentence_transformers import SentenceTransformer
+        except ImportError:
+            raise ImportError(
+                "Sentence Transformers not installed. Run: pip install sentence-transformers torch"
+            )
 
-        logger.info(f"Embedding service initialized with model: {self.model}")
+        self.model = model or settings.get("embeddings.sentence_transformer_model", "all-MiniLM-L6-v2")
+        device = settings.get("embeddings.device", "cpu")
+
+        logger.info(f"Loading Sentence Transformer model: {self.model} on {device}")
+        self.client = SentenceTransformer(self.model, device=device)
+        logger.info(f"Model loaded successfully")
 
     def embed_text(self, text: str, retry_count: int = 3) -> List[float]:
         """
@@ -61,7 +101,7 @@ class EmbeddingService:
 
         Args:
             text: Text to embed
-            retry_count: Number of retries on failure
+            retry_count: Number of retries on failure (OpenAI only)
 
         Returns:
             List[float]: Embedding vector
@@ -89,7 +129,7 @@ class EmbeddingService:
 
         Args:
             texts: List of texts to embed
-            retry_count: Number of retries on failure
+            retry_count: Number of retries on failure (OpenAI only)
 
         Returns:
             List[List[float]]: List of embedding vectors
@@ -124,11 +164,11 @@ class EmbeddingService:
                 f"{len(batch_texts)} texts"
             )
 
-            # Get embeddings for this batch with retry logic
-            batch_embeddings = self._embed_batch_with_retry(
-                batch_texts,
-                retry_count
-            )
+            # Get embeddings for this batch
+            if self.provider == "openai":
+                batch_embeddings = self._embed_batch_openai(batch_texts, retry_count)
+            elif self.provider == "sentence-transformers":
+                batch_embeddings = self._embed_batch_sentence_transformers(batch_texts)
 
             # Place embeddings back at original indices
             for original_idx, embedding in zip(batch_original_indices, batch_embeddings):
@@ -141,13 +181,13 @@ class EmbeddingService:
 
         return all_embeddings
 
-    def _embed_batch_with_retry(
+    def _embed_batch_openai(
         self,
         texts: List[str],
         retry_count: int
     ) -> List[List[float]]:
         """
-        Generate embeddings with retry logic.
+        Generate embeddings using OpenAI with retry logic.
 
         Args:
             texts: List of texts to embed
@@ -173,15 +213,15 @@ class EmbeddingService:
                 # Log usage statistics
                 if hasattr(response, 'usage'):
                     logger.debug(
-                        f"Embedding generated: {len(texts)} texts, "
+                        f"OpenAI embedding generated: {len(texts)} texts, "
                         f"{response.usage.total_tokens} tokens"
                     )
 
                 return embeddings
 
-            except OpenAIError as e:
+            except self.OpenAIError as e:
                 logger.warning(
-                    f"Embedding failed (attempt {attempt + 1}/{retry_count}): {e}"
+                    f"OpenAI embedding failed (attempt {attempt + 1}/{retry_count}): {e}"
                 )
 
                 if attempt < retry_count - 1:
@@ -190,24 +230,67 @@ class EmbeddingService:
                     logger.info(f"Retrying in {sleep_time} seconds...")
                     time.sleep(sleep_time)
                 else:
-                    logger.error(f"All {retry_count} attempts failed for embedding")
+                    logger.error(f"All {retry_count} attempts failed for OpenAI embedding")
                     raise
+
+    def _embed_batch_sentence_transformers(
+        self,
+        texts: List[str]
+    ) -> List[List[float]]:
+        """
+        Generate embeddings using Sentence Transformers (local, no API calls).
+
+        Args:
+            texts: List of texts to embed
+
+        Returns:
+            List[List[float]]: Embedding vectors
+        """
+        try:
+            # Generate embeddings (runs locally on CPU/GPU)
+            embeddings = self.client.encode(
+                texts,
+                show_progress_bar=False,
+                convert_to_numpy=True
+            )
+
+            # Convert numpy arrays to lists
+            embeddings_list = [emb.tolist() for emb in embeddings]
+
+            logger.debug(f"Sentence Transformers embedding generated: {len(texts)} texts")
+            return embeddings_list
+
+        except Exception as e:
+            logger.error(f"Sentence Transformers embedding failed: {e}")
+            raise
 
     def get_embedding_dimension(self) -> int:
         """
         Get the dimension of embeddings for the current model.
 
         Returns:
-            int: Embedding dimension (e.g., 1536 for text-embedding-3-small)
+            int: Embedding dimension
         """
-        # Model dimension mapping
-        dimensions = {
-            "text-embedding-3-small": 1536,
-            "text-embedding-3-large": 3072,
-            "text-embedding-ada-002": 1536
-        }
+        if self.provider == "openai":
+            # OpenAI model dimension mapping
+            dimensions = {
+                "text-embedding-3-small": 1536,
+                "text-embedding-3-large": 3072,
+                "text-embedding-ada-002": 1536
+            }
+            return dimensions.get(self.model, 1536)
 
-        return dimensions.get(self.model, 1536)
+        elif self.provider == "sentence-transformers":
+            # Sentence Transformer model dimension mapping
+            dimensions = {
+                "all-MiniLM-L6-v2": 384,
+                "all-mpnet-base-v2": 768,
+                "BAAI/bge-small-en-v1.5": 384,
+                "BAAI/bge-base-en-v1.5": 768
+            }
+            return dimensions.get(self.model, 384)
+
+        return 384  # Default fallback
 
     def estimate_tokens(self, text: str) -> int:
         """
@@ -227,9 +310,8 @@ class EmbeddingService:
         """
         Estimate the cost of embedding a list of texts.
 
-        Pricing (as of 2024):
-        - text-embedding-3-small: $0.02 / 1M tokens
-        - text-embedding-3-large: $0.13 / 1M tokens
+        For Sentence Transformers: Always free (runs locally)
+        For OpenAI: Based on current pricing
 
         Args:
             texts: List of texts to embed
@@ -237,7 +319,17 @@ class EmbeddingService:
         Returns:
             Dict: Cost estimation with token count and price
         """
-        # Estimate total tokens
+        if self.provider == "sentence-transformers":
+            return {
+                "model": self.model,
+                "provider": "sentence-transformers",
+                "text_count": len(texts),
+                "estimated_tokens": sum(self.estimate_tokens(text) for text in texts),
+                "cost_usd": 0.0,
+                "note": "Sentence Transformers runs locally - completely free!"
+            }
+
+        # OpenAI pricing
         total_tokens = sum(self.estimate_tokens(text) for text in texts)
 
         # Pricing per million tokens (USD)
@@ -252,6 +344,7 @@ class EmbeddingService:
 
         return {
             "model": self.model,
+            "provider": "openai",
             "text_count": len(texts),
             "estimated_tokens": total_tokens,
             "cost_usd": round(estimated_cost, 6),
@@ -281,29 +374,30 @@ class EmbeddingService:
             Dict: Service information
         """
         return {
+            "provider": self.provider,
             "model": self.model,
             "dimension": self.get_embedding_dimension(),
             "batch_size": self.batch_size,
-            "has_api_key": bool(self.api_key)
+            "is_free": self.provider == "sentence-transformers"
         }
 
     def __repr__(self) -> str:
         """String representation"""
-        return f"EmbeddingService(model='{self.model}', dimension={self.get_embedding_dimension()})"
+        return f"EmbeddingService(provider='{self.provider}', model='{self.model}', dimension={self.get_embedding_dimension()})"
 
 
 def create_embedding_service(
-    api_key: Optional[str] = None,
+    provider: Optional[EmbeddingProvider] = None,
     model: Optional[str] = None
 ) -> EmbeddingService:
     """
     Factory function to create embedding service instance.
 
     Args:
-        api_key: Optional OpenAI API key
+        provider: Embedding provider ("openai" or "sentence-transformers")
         model: Optional model name
 
     Returns:
         EmbeddingService: Configured embedding service instance
     """
-    return EmbeddingService(api_key=api_key, model=model)
+    return EmbeddingService(provider=provider, model=model)
