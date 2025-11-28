@@ -118,7 +118,7 @@ class BaseAgent(ABC):
 
         logger.info(
             f"Initialized {agent_name} for student {student.name} "
-            f"(session: {session.session_id})"
+            f"(session: {session.id})"
         )
 
     def get_system_prompt(self) -> str:
@@ -135,11 +135,9 @@ class BaseAgent(ABC):
 Student Profile:
 - Name: {self.student.name}
 - Exam: {self.student.exam_type}
-- Grade: {self.student.grade_level or 'Not specified'}
 
 Your role is to provide personalized educational assistance based on the student's
-learning goals, weak areas, and progress. Always be encouraging, clear, and adaptive
-to the student's needs."""
+weak areas and progress. Always be encouraging, clear, and adaptive to the student's needs."""
 
     @abstractmethod
     def execute(self, user_input: str, **kwargs) -> Dict[str, Any]:
@@ -176,8 +174,9 @@ Question/Task: {question}
 Think through this step by step. What's the key information? What approach should we take?
 Provide your reasoning:"""
 
-        response = self.llm.generate(
-            prompt=prompt,
+        messages = [{"role": "user", "content": prompt}]
+        response = self.llm.chat_completion(
+            messages=messages,
             system_prompt=self.get_system_prompt(),
             temperature=0.7,
             max_tokens=500
@@ -243,8 +242,11 @@ Provide your reasoning:"""
         """
         self.total_calls += 1
 
-        response = self.llm.generate(
-            prompt=prompt,
+        # Format as chat messages
+        messages = [{"role": "user", "content": prompt}]
+
+        response = self.llm.chat_completion(
+            messages=messages,
             system_prompt=system_prompt or self.get_system_prompt(),
             temperature=temperature or self.config.get("temperature", 0.7),
             max_tokens=max_tokens or self.config.get("max_tokens", 1000)
@@ -273,8 +275,9 @@ Reasoning: {reasoning}
 Provide a brief (2-3 sentences) explanation that helps the student understand WHY
 this decision was made and HOW it will help their learning:"""
 
-        explanation = self.llm.generate(
-            prompt=prompt,
+        messages = [{"role": "user", "content": prompt}]
+        explanation = self.llm.chat_completion(
+            messages=messages,
             system_prompt=self.get_system_prompt(),
             temperature=0.5,
             max_tokens=200
@@ -285,7 +288,7 @@ this decision was made and HOW it will help their learning:"""
     def update_session_state(self):
         """Update the session with current agent state"""
         self.session.agent_state = self.state.to_dict()
-        self.session.last_activity = datetime.now()
+        self.session.last_interaction = datetime.now()
 
     def get_student_context(self) -> str:
         """
@@ -296,12 +299,12 @@ this decision was made and HOW it will help their learning:"""
         """
         weak_areas = self.student.weak_areas or []
         strong_areas = self.student.strong_areas or []
+        preferences = self.student.learning_preferences or {}
 
         context = f"""Student Profile:
 - Name: {self.student.name}
 - Exam: {self.student.exam_type}
-- Grade Level: {self.student.grade_level or 'Not specified'}
-- Learning Goals: {self.student.learning_goals or 'Not specified'}
+- Preferred Difficulty: {preferences.get('preferred_difficulty', 'medium')}
 """
 
         if weak_areas:
@@ -333,8 +336,8 @@ this decision was made and HOW it will help their learning:"""
         log_entry = {
             "timestamp": datetime.now().isoformat(),
             "agent": self.agent_name,
-            "student_id": self.student.student_id,
-            "session_id": self.session.session_id,
+            "student_id": self.student.id,
+            "session_id": self.session.id,
             "user_input": user_input[:200],  # Truncate for storage
             "agent_output": agent_output[:200],
             "metadata": metadata or {}
@@ -345,7 +348,7 @@ this decision was made and HOW it will help their learning:"""
     def __repr__(self) -> str:
         return (
             f"{self.agent_name}(student={self.student.name}, "
-            f"session={self.session.session_id[:8]}, "
+            f"session={self.session.id[:8]}, "
             f"calls={self.total_calls})"
         )
 
@@ -429,6 +432,6 @@ support and practice suggestions."""
             "sources_used": len(self.state.get("last_retrieval_sources", [])),
             "metadata": {
                 "total_calls": self.total_calls,
-                "session_id": self.session.session_id
+                "session_id": self.session.id
             }
         }
