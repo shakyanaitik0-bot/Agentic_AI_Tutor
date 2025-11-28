@@ -144,6 +144,8 @@ agents:
     temperature: 0.3  # Lower temperature for more consistent planning
     max_planning_steps: 5
     enable_reasoning_trace: true
+    min_hours_per_day: 2  # Minimum study hours per day
+    max_hours_per_day: 6  # Maximum study hours per day
 
   # Retriever Agent (RAG)
   retriever:
