@@ -214,6 +214,8 @@ class LLMService:
         Returns:
             str: Generated response
         """
+        from google.generativeai.types import HarmCategory, HarmBlockThreshold
+
         # Convert OpenAI-style messages to Gemini format
         gemini_messages = self._convert_to_gemini_format(messages)
 
@@ -223,10 +225,19 @@ class LLMService:
             max_output_tokens=max_tokens
         )
 
+        # Configure safety settings - LESS restrictive for educational content
+        safety_settings = {
+            HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+        }
+
         # Generate response
         response = self.client.generate_content(
             gemini_messages,
-            generation_config=generation_config
+            generation_config=generation_config,
+            safety_settings=safety_settings
         )
 
         return response.text
