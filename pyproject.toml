@@ -36,6 +36,9 @@ dependencies = [
 
     # Security & Encryption
     "cryptography>=41.0.0",
+
+    # Configuration
+    "pyyaml>=6.0.1",
 ]
 
 [project.optional-dependencies]

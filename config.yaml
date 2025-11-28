@@ -1,0 +1,267 @@
+# Agentic AI Tutor - Configuration File
+# ============================================
+# This file contains all non-sensitive application settings.
+# API keys and secrets should be in .env file.
+
+# Application Settings
+app:
+  name: "Agentic AI Tutor"
+  version: "0.1.0"
+  debug: false
+  log_level: "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+
+# Database Configuration
+database:
+  url: "sqlite:///./data/tutor_app.db"
+  echo: false  # Set to true to see SQL queries
+
+# LLM Configuration
+llm:
+  # Default provider: "openai" or "gemini"
+  default_provider: "openai"
+
+  # Model configurations for each provider
+  models:
+    openai:
+      default: "gpt-4o-mini"  # Fast and cost-effective
+      advanced: "gpt-4o"      # For complex reasoning
+      fallback: "gpt-3.5-turbo"
+    gemini:
+      default: "gemini-2.0-flash-exp"  # Fast Gemini model
+      advanced: "gemini-1.5-pro"       # For complex tasks
+      fallback: "gemini-1.5-flash"
+
+  # Generation parameters
+  temperature: 0.7  # 0.0 = deterministic, 2.0 = very creative
+  max_tokens: 2000
+  timeout: 30  # seconds
+  retry_attempts: 3
+  retry_delay: 1  # Initial delay in seconds (exponential backoff)
+
+# Embedding Configuration
+embeddings:
+  provider: "openai"  # Only OpenAI supported for now
+  model: "text-embedding-3-small"  # 1536 dimensions
+  batch_size: 100  # Number of texts to embed at once
+  timeout: 30
+
+# Pinecone Vector Database
+pinecone:
+  index_name: "tutor-knowledge-base"
+  dimension: 1536  # Must match embedding model
+  metric: "cosine"  # cosine, euclidean, or dotproduct
+  environment: "us-east-1"  # Pinecone region
+
+  # Index creation settings (for new indices)
+  create_if_missing: true
+  pod_type: "p1.x1"  # Free tier
+
+# RAG (Retrieval-Augmented Generation) Settings
+rag:
+  # Document chunking
+  chunk_size: 500  # tokens per chunk
+  chunk_overlap: 50  # overlap between chunks
+
+  # Retrieval settings
+  top_k: 5  # Number of results to retrieve
+  similarity_threshold: 0.7  # Minimum similarity score (0.0-1.0)
+  max_context_tokens: 3000  # Maximum tokens in context
+
+  # Metadata filtering
+  enable_metadata_filtering: true
+  filter_by_exam_type: true  # Filter results by student's exam type
+
+# Session Management
+session:
+  timeout_minutes: 60  # Inactivity timeout
+  max_conversation_history: 20  # Messages to keep in context
+  auto_save_interval: 5  # Auto-save every N messages
+
+  # Session types
+  types:
+    - "general"
+    - "quiz"
+    - "review"
+    - "assessment"
+
+# Quiz Generation Settings
+quiz:
+  # Difficulty adaptation thresholds (percentage)
+  difficulty_thresholds:
+    easy_below: 50.0    # < 50% accuracy → easy questions
+    medium_range: [50.0, 80.0]  # 50-80% → medium questions
+    hard_above: 80.0    # > 80% accuracy → hard questions
+
+  # Quiz parameters
+  default_questions_per_quiz: 5
+  min_questions: 3
+  max_questions: 10
+
+  # Question types and their weights
+  question_types:
+    multiple_choice: 0.6
+    true_false: 0.2
+    numerical: 0.1
+    descriptive: 0.1
+
+  # Time limits (optional, in minutes)
+  time_limits:
+    easy: 15
+    medium: 20
+    hard: 25
+
+# Progress Tracking & Analytics
+progress:
+  # Performance classification thresholds (percentage)
+  thresholds:
+    weak_below: 60.0      # < 60% accuracy = weak area
+    average_range: [60.0, 80.0]  # 60-80% = average
+    strong_above: 80.0    # > 80% = strong area
+    mastery: 85.0         # > 85% with recent practice = mastered
+
+  # Staleness detection
+  stale_days: 7  # Days without practice → needs review
+
+  # Minimum attempts for reliable assessment
+  min_attempts_for_assessment: 5
+
+  # Learning velocity calculation
+  velocity_window: 10  # Number of recent attempts to analyze
+
+# Agent System Configuration
+agents:
+  # Planner Agent
+  planner:
+    model: "default"  # Reference to llm.models
+    temperature: 0.3  # Lower temperature for more consistent planning
+    max_planning_steps: 5
+    enable_reasoning_trace: true
+
+  # Retriever Agent (RAG)
+  retriever:
+    model: "default"
+    temperature: 0.5
+    query_expansion: true  # Expand user queries for better retrieval
+    max_query_variations: 3
+
+  # Quiz Generator Agent
+  quiz_generator:
+    model: "default"
+    temperature: 0.8  # Higher for creative question generation
+    validate_questions: true  # Check question quality
+    include_explanations: true
+
+  # Progress Tracker Agent
+  progress_tracker:
+    model: "default"
+    temperature: 0.4
+    generate_recommendations: true
+    recommendation_count: 3  # Top N recommendations
+
+# API Configuration
+api:
+  prefix: "/api"
+  title: "Agentic AI Tutor API"
+  description: "Adaptive learning platform with multi-agent AI tutoring"
+  version: "0.1.0"
+
+  # CORS settings
+  cors:
+    enabled: true
+    origins:
+      - "*"  # Change to specific origins in production
+    methods: ["GET", "POST", "PUT", "DELETE"]
+    allow_credentials: true
+
+  # Rate limiting (requests per minute)
+  rate_limits:
+    ask_endpoint: 20
+    quiz_endpoint: 10
+    progress_endpoint: 30
+    default: 60
+
+# Logging Configuration
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+  # Log files
+  files:
+    app_log: "logs/app.log"
+    error_log: "logs/error.log"
+    agent_log: "logs/agents.log"
+
+  # Rotation settings
+  rotation:
+    max_bytes: 10485760  # 10MB
+    backup_count: 5
+
+  # What to log
+  log_llm_requests: true
+  log_agent_decisions: true
+  log_rag_queries: true
+
+# Exam Type Configurations
+exam_types:
+  JEE:
+    full_name: "Joint Entrance Examination"
+    subjects: ["Mathematics", "Physics", "Chemistry"]
+    difficulty_distribution: [0.3, 0.5, 0.2]  # easy, medium, hard
+
+  SAT:
+    full_name: "Scholastic Assessment Test"
+    subjects: ["Math", "Reading", "Writing"]
+    difficulty_distribution: [0.4, 0.4, 0.2]
+
+  GRE:
+    full_name: "Graduate Record Examination"
+    subjects: ["Quantitative Reasoning", "Verbal Reasoning", "Analytical Writing"]
+    difficulty_distribution: [0.2, 0.5, 0.3]
+
+# Feature Flags
+features:
+  enable_flashcards: false  # Not implemented in MVP
+  enable_pdf_export: false  # Future feature
+  enable_email_reports: false  # Future feature
+  enable_voice_input: false  # Future feature
+  enable_collaborative_learning: false  # Future feature
+
+# Performance & Optimization
+performance:
+  # Caching
+  enable_caching: true
+  cache_ttl: 3600  # seconds (1 hour)
+  cache_embeddings: true
+  cache_llm_responses: false  # Disable for personalized responses
+
+  # Batch processing
+  batch_embeddings: true
+  batch_database_writes: true
+
+  # Async operations
+  async_rag_queries: true
+  async_agent_calls: false  # Keep sequential for MVP
+
+# Environment-Specific Overrides
+# These can be overridden by environment variables
+environments:
+  development:
+    app:
+      debug: true
+      log_level: "DEBUG"
+    database:
+      echo: true
+
+  production:
+    app:
+      debug: false
+      log_level: "WARNING"
+    performance:
+      enable_caching: true
+    api:
+      cors:
+        origins:
+          - "https://yourdomain.com"  # Update with actual domain
+
+# Default to development environment
+active_environment: "development"
