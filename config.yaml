@@ -72,7 +72,7 @@ rag:
 
   # Retrieval settings
   top_k: 5  # Number of results to retrieve
-  similarity_threshold: 0.7  # Minimum similarity score (0.0-1.0)
+  similarity_threshold: 0.6  # Minimum similarity score (lowered for Sentence Transformers)
   max_context_tokens: 3000  # Maximum tokens in context
 
   # Metadata filtering
