@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agentic AI Tutor</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <h1>🎓 Agentic AI Tutor</h1>
+            <p class="subtitle">Adaptive Learning with Multi-Agent AI</p>
+        </header>
+
+        <!-- Registration Section -->
+        <section id="registration-section" class="section">
+            <h2>Student Registration</h2>
+            <form id="registration-form">
+                <div class="form-group">
+                    <label for="student-name">Full Name</label>
+                    <input type="text" id="student-name" required placeholder="Enter your name">
+                </div>
+
+                <div class="form-group">
+                    <label for="student-email">Email</label>
+                    <input type="email" id="student-email" required placeholder="your.email@example.com">
+                </div>
+
+                <div class="form-group">
+                    <label for="exam-type">Exam Type</label>
+                    <select id="exam-type" required>
+                        <option value="">Select exam...</option>
+                        <option value="JEE">JEE (Joint Entrance Examination)</option>
+                        <option value="SAT">SAT (Scholastic Assessment Test)</option>
+                        <option value="GRE">GRE (Graduate Record Examination)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="weak-areas">Weak Areas (comma-separated)</label>
+                    <input type="text" id="weak-areas" placeholder="e.g., Calculus, Organic Chemistry">
+                </div>
+
+                <div class="form-group">
+                    <label for="strong-areas">Strong Areas (comma-separated)</label>
+                    <input type="text" id="strong-areas" placeholder="e.g., Algebra, Mechanics">
+                </div>
+
+                <button type="submit" class="btn btn-primary">Register & Start Learning</button>
+            </form>
+        </section>
+
+        <!-- Dashboard Section (hidden initially) -->
+        <section id="dashboard-section" class="section hidden">
+            <div class="student-info">
+                <h2>Welcome, <span id="display-name"></span>!</h2>
+                <p>Exam: <strong id="display-exam"></strong> | Session: <span id="session-status">Not Started</span></p>
+            </div>
+
+            <div class="action-buttons">
+                <button id="btn-start-session" class="btn btn-primary">Start Session</button>
+                <button id="btn-view-progress" class="btn btn-secondary">View Progress</button>
+                <button id="btn-generate-plan" class="btn btn-secondary">Generate Study Plan</button>
+                <button id="btn-end-session" class="btn btn-danger hidden">End Session</button>
+            </div>
+        </section>
+
+        <!-- Chat Section (hidden initially) -->
+        <section id="chat-section" class="section hidden">
+            <h2>💬 Chat with AI Tutor</h2>
+
+            <div id="chat-messages" class="chat-messages">
+                <div class="message assistant-message">
+                    <strong>AI Tutor:</strong> Hello! I'm your AI tutor. You can:
+                    <ul>
+                        <li>Ask me to create a study plan</li>
+                        <li>Request a quiz on any topic</li>
+                        <li>Ask for feedback on your progress</li>
+                        <li>Have a conversation about any subject</li>
+                    </ul>
+                    Try: "Generate a quiz on Calculus" or "Create a 30-day study plan"
+                </div>
+            </div>
+
+            <div class="chat-input-container">
+                <input type="text" id="chat-input" placeholder="Type your message..." disabled>
+                <button id="btn-send-message" class="btn btn-primary" disabled>Send</button>
+            </div>
+        </section>
+
+        <!-- Quiz Section (hidden initially) -->
+        <section id="quiz-section" class="section hidden">
+            <h2>📝 Quiz</h2>
+            <div id="quiz-container"></div>
+        </section>
+
+        <!-- Progress Section (hidden initially) -->
+        <section id="progress-section" class="section hidden">
+            <h2>📊 Progress Report</h2>
+            <div id="progress-container"></div>
+        </section>
+
+        <!-- Study Plan Section (hidden initially) -->
+        <section id="plan-section" class="section hidden">
+            <h2>📅 Study Plan</h2>
+            <div id="plan-container"></div>
+        </section>
+
+        <!-- Loading Overlay -->
+        <div id="loading-overlay" class="hidden">
+            <div class="spinner"></div>
+            <p>Processing...</p>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
