@@ -12,10 +12,11 @@ Provides comprehensive performance analysis and personalized recommendations:
 import logging
 from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime, timedelta
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session as DBSession
 
 from app.agents.base_agent import BaseAgent, AgentState
 from app.models.student import Student
+from app.models.session import Session
 from app.models.progress import Progress, StrengthLevel
 from app.core.config import settings
 
@@ -79,25 +80,26 @@ class FeedbackAgent(BaseAgent):
     def __init__(
         self,
         student: Student,
-        db_session: Session,
-        session_id: Optional[str] = None,
-        agent_state: Optional[AgentState] = None
+        session: Session,
+        db: DBSession,
+        **kwargs
     ):
         """
         Initialize Feedback Agent.
 
         Args:
-            student: Student model instance
-            db_session: Database session
-            session_id: Optional session ID
-            agent_state: Optional initial agent state
+            student: Student profile
+            session: Current session
+            db: Database session for querying Progress
+            **kwargs: Additional arguments for BaseAgent
         """
         super().__init__(
+            agent_name="FeedbackAgent",
             student=student,
-            db_session=db_session,
-            session_id=session_id,
-            agent_state=agent_state
+            session=session,
+            **kwargs
         )
+        self.db = db
 
         # Load feedback configuration
         feedback_config = settings.get("agents.feedback", {})
@@ -116,6 +118,72 @@ class FeedbackAgent(BaseAgent):
         self.stale_practice_days = feedback_config.get("stale_practice_days", 7)
 
         logger.info(f"FeedbackAgent initialized for student {student.id}")
+
+    def execute(self, user_input: str, **kwargs) -> Dict[str, Any]:
+        """
+        Generate performance feedback based on user request.
+
+        Args:
+            user_input: User's request (e.g., "Show my progress", "How am I doing?")
+            **kwargs: Additional parameters
+                - report_type: Type of report ('student', 'teacher', or 'data')
+                - format: Output format ('text' or 'json')
+
+        Returns:
+            Dict: Performance report with analysis and recommendations
+        """
+        logger.info(f"[FeedbackAgent] Processing request: '{user_input[:50]}...'")
+
+        # Parse parameters
+        report_type = kwargs.get("report_type", "student")  # student/teacher/data
+        output_format = kwargs.get("format", "text")  # text/json
+
+        # Generate performance analysis
+        report = self.analyze_performance()
+
+        # Format output based on request
+        if report_type == "teacher":
+            # Detailed report for teachers/parents
+            result = self.create_teacher_report(report)
+            return {
+                "agent": "FeedbackAgent",
+                "report_type": "teacher",
+                "format": "json",
+                "data": result
+            }
+        elif report_type == "data":
+            # Raw data format
+            return {
+                "agent": "FeedbackAgent",
+                "report_type": "data",
+                "format": "json",
+                "data": report.to_dict()
+            }
+        else:  # student (default)
+            # Student-friendly report
+            if output_format == "json":
+                return {
+                    "agent": "FeedbackAgent",
+                    "report_type": "student",
+                    "format": "json",
+                    "data": {
+                        "overall_stats": report.overall_stats,
+                        "weak_topics": report.weak_topics[:5],
+                        "strong_topics": report.strong_topics[:5],
+                        "recommendations": report.recommendations,
+                        "needs_replanning": report.needs_replanning
+                    }
+                }
+            else:
+                # Text format
+                report_text = self.create_student_report(report)
+                return {
+                    "agent": "FeedbackAgent",
+                    "report_type": "student",
+                    "format": "text",
+                    "content": report_text,
+                    "needs_replanning": report.needs_replanning
+                }
 
     def analyze_performance(self) -> PerformanceReport:
         """
@@ -577,22 +645,22 @@ Return ONLY a JSON array of recommendation strings:
 
 def create_feedback_agent(
     student: Student,
-    db_session: Session,
-    session_id: Optional[str] = None
+    session: Session,
+    db: DBSession
 ) -> FeedbackAgent:
     """
     Factory function to create a Feedback Agent instance.
 
     Args:
-        student: Student model instance
-        db_session: Database session
-        session_id: Optional session ID
+        student: Student profile
+        session: Current session
+        db: Database session
 
     Returns:
         FeedbackAgent: Initialized agent
     """
     return FeedbackAgent(
         student=student,
-        db_session=db_session,
-        session_id=session_id
+        session=session,
+        db=db
     )

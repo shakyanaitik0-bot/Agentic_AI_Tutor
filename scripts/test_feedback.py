@@ -2,13 +2,14 @@
 Test script for Feedback Agent.
 
 Tests:
-1. Load student with progress data
-2. Initialize Feedback Agent
-3. Analyze overall performance
-4. Generate personalized recommendations
-5. Create student report
-6. Create teacher report
-7. Test replanning trigger detection
+1. Load database session
+2. Load student with progress data
+3. Create session
+4. Initialize Feedback Agent
+5. Analyze overall performance
+6. Display analysis results
+7. Create student report
+8. Create teacher report
 """
 import sys
 import os
@@ -18,8 +19,9 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from app.core.database import get_db_session
+from app.core.database import get_database
 from app.models.student import Student
+from app.models.session import Session
 from app.models.progress import Progress
 from app.agents.feedback_agent import FeedbackAgent, create_feedback_agent
 import json
@@ -41,10 +43,11 @@ def test_feedback_agent():
     print("TESTING FEEDBACK AGENT")
     print("=" * 60 + "\n")
 
+    db = None
     try:
         # 1. Get database session
         print("[1/7] Loading database session...")
-        db = next(get_db_session())
+        db = next(get_database())
         print("    [OK] Database session loaded")
 
         # 2. Load a student with progress data
@@ -68,16 +71,25 @@ def test_feedback_agent():
             progress_count = db.query(Progress).filter(Progress.student_id == student.id).count()
             print(f"    [OK] Created {progress_count} sample progress records")
 
-        # 3. Initialize Feedback Agent
-        print("\n[3/7] Initializing Feedback Agent...")
+        # 3. Create session
+        print("\n[3/7] Creating session...")
+        session = Session(student_id=student.id, is_active=True)
+        db.add(session)
+        db.commit()
+        print(f"    Session ID: {session.id[:16]}...")
+        print("    [OK] Session created")
+
+        # 4. Initialize Feedback Agent
+        print("\n[4/7] Initializing Feedback Agent...")
         feedback_agent = create_feedback_agent(
             student=student,
-            db_session=db
+            session=session,
+            db=db
         )
         print("    [OK] Feedback Agent initialized")
 
-        # 4. Analyze performance
-        print("\n[4/7] Analyzing student performance...")
+        # 5. Analyze performance
+        print("\n[5/7] Analyzing student performance...")
         report = feedback_agent.analyze_performance()
         print("    [OK] Performance analysis complete")
 
@@ -161,7 +173,8 @@ def test_feedback_agent():
         traceback.print_exc()
 
     finally:
-        db.close()
+        if db:
+            db.close()
 
 
 def create_sample_progress(db, student):
