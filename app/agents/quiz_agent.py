@@ -485,6 +485,18 @@ Question {question_num}:"""
         correct_count = 0
         results = []
 
+        # Handle case where quiz data is not available
+        if num_questions == 0:
+            logger.warning(f"Quiz {quiz_data.get('quiz_id', 'unknown')} has no questions - cannot grade")
+            return {
+                "total_questions": 0,
+                "correct_answers": 0,
+                "accuracy": 0.0,
+                "results": [],
+                "passed": False,
+                "error": "Quiz data not found - quizzes must be stored for grading"
+            }
+
         for idx, (question, answer) in enumerate(zip(questions, student_answers)):
             correct_index = question["correct_answer_index"]
             is_correct = (answer == correct_index)
