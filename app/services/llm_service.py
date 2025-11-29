@@ -87,7 +87,7 @@ class LLMService:
         """
         defaults = {
             "openai": "gpt-4o-mini",  # Fast and cost-effective
-            "gemini": "gemini-2.5-flash"  # Fast Gemini model
+            "gemini": "gemini-2.5-flash-lite"  # Fast Gemini model
         }
         return defaults.get(self.provider, "gpt-4o-mini")
 
@@ -239,6 +239,23 @@ class LLMService:
             generation_config=generation_config,
             safety_settings=safety_settings
         )
+
+        # Check if response was blocked by safety filters
+        if not response.candidates:
+            raise ValueError("Gemini blocked the response (no candidates returned)")
+
+        candidate = response.candidates[0]
+        finish_reason = candidate.finish_reason
+
+        # finish_reason: 1=STOP (normal), 2=SAFETY, 3=RECITATION, 4=OTHER
+        if finish_reason == 2:
+            raise ValueError(
+                "Gemini safety filter blocked this content. "
+                "This is a known limitation with educational content containing words like "
+                "'weak areas', 'struggling', 'mistakes'. Fallback content will be used."
+            )
+        elif finish_reason != 1:  # Not STOP (normal completion)
+            raise ValueError(f"Gemini response incomplete (finish_reason={finish_reason})")
 
         return response.text
 
