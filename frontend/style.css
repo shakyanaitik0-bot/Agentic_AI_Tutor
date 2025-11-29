@@ -156,6 +156,72 @@ header .subtitle {
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
+    margin-bottom: 20px;
+}
+
+/* Tab Navigation */
+.tab-nav {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    border-bottom: 2px solid #e0e0e0;
+    padding-bottom: 10px;
+}
+
+.tab-btn {
+    padding: 10px 20px;
+    background: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    color: #718096;
+}
+
+.tab-btn:hover {
+    color: #667eea;
+}
+
+.tab-btn.active {
+    color: #667eea;
+    border-bottom-color: #667eea;
+}
+
+/* Tab Content */
+#tab-content {
+    margin-top: 20px;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+.empty-state {
+    background: #f7fafc;
+    padding: 40px;
+    text-align: center;
+    border-radius: 8px;
+    color: #718096;
+}
+
+.empty-state p {
+    font-size: 1.1rem;
+}
+
+/* Info Text */
+.info-text {
+    background: #e6f2ff;
+    padding: 15px;
+    border-radius: 6px;
+    border-left: 4px solid #667eea;
+    color: #2d3748;
+    margin-bottom: 20px;
 }
 
 /* Chat Styles */

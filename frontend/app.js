@@ -14,10 +14,6 @@ const elements = {
     // Sections
     registrationSection: document.getElementById('registration-section'),
     dashboardSection: document.getElementById('dashboard-section'),
-    chatSection: document.getElementById('chat-section'),
-    quizSection: document.getElementById('quiz-section'),
-    progressSection: document.getElementById('progress-section'),
-    planSection: document.getElementById('plan-section'),
     loadingOverlay: document.getElementById('loading-overlay'),
 
     // Forms and Inputs
@@ -38,7 +34,18 @@ const elements = {
     sessionStatus: document.getElementById('session-status'),
     quizContainer: document.getElementById('quiz-container'),
     progressContainer: document.getElementById('progress-container'),
-    planContainer: document.getElementById('plan-container')
+    planContainer: document.getElementById('plan-container'),
+
+    // Tab navigation
+    tabNavigation: document.getElementById('tab-navigation'),
+    tabContent: document.getElementById('tab-content'),
+    tabButtons: document.querySelectorAll('.tab-btn'),
+    tabs: {
+        chat: document.getElementById('tab-chat'),
+        quiz: document.getElementById('tab-quiz'),
+        progress: document.getElementById('tab-progress'),
+        plan: document.getElementById('tab-plan')
+    }
 };
 
 // Utility Functions
@@ -50,14 +57,29 @@ function hideLoading() {
     elements.loadingOverlay.classList.add('hidden');
 }
 
-function showSection(section) {
-    // Hide all sections except registration
-    [elements.dashboardSection, elements.chatSection, elements.quizSection,
-     elements.progressSection, elements.planSection].forEach(s => s.classList.add('hidden'));
+// Tab switching
+function switchTab(tabName) {
+    // Update tab buttons
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.tab === tabName) {
+            btn.classList.add('active');
+        }
+    });
 
-    // Show requested section
-    section.classList.remove('hidden');
+    // Update tab content
+    Object.keys(elements.tabs).forEach(key => {
+        elements.tabs[key].classList.remove('active');
+    });
+    elements.tabs[tabName].classList.add('active');
 }
+
+// Initialize tab switching
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        switchTab(btn.dataset.tab);
+    });
+});
 
 function addChatMessage(role, content) {
     const messageDiv = document.createElement('div');
@@ -102,7 +124,7 @@ async function apiRequest(endpoint, options = {}) {
     }
 }
 
-// Registration
+// Registration (removed weak/strong areas - system discovers these automatically)
 elements.registrationForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
@@ -113,16 +135,10 @@ elements.registrationForm.addEventListener('submit', async (e) => {
             name: document.getElementById('student-name').value,
             email: document.getElementById('student-email').value,
             exam_type: document.getElementById('exam-type').value,
-            weak_areas: document.getElementById('weak-areas').value
-                .split(',')
-                .map(s => s.trim())
-                .filter(s => s),
-            strong_areas: document.getElementById('strong-areas').value
-                .split(',')
-                .map(s => s.trim())
-                .filter(s => s),
+            weak_areas: [],  // Will be discovered through quizzes
+            strong_areas: [], // Will be discovered through quizzes
             learning_preferences: {
-                style: 'visual',
+                style: 'adaptive',
                 practice_intensity: 'medium'
             }
         };
@@ -141,7 +157,7 @@ elements.registrationForm.addEventListener('submit', async (e) => {
 
         // Show dashboard
         elements.registrationSection.classList.add('hidden');
-        showSection(elements.dashboardSection);
+        elements.dashboardSection.classList.remove('hidden');
 
         hideLoading();
     } catch (error) {
@@ -164,16 +180,22 @@ elements.btnStartSession.addEventListener('click', async () => {
         });
 
         state.sessionId = data.id;
-        elements.sessionStatus.textContent = 'Active';
+        elements.sessionStatus.textContent = 'Active ✓';
         elements.btnStartSession.classList.add('hidden');
         elements.btnEndSession.classList.remove('hidden');
 
-        // Enable chat
+        // Enable buttons
         elements.chatInput.disabled = false;
         elements.btnSendMessage.disabled = false;
+        elements.btnViewProgress.disabled = false;
+        elements.btnGeneratePlan.disabled = false;
 
-        // Show chat section
-        showSection(elements.chatSection);
+        // Show tabs
+        elements.tabNavigation.classList.remove('hidden');
+        elements.tabContent.classList.remove('hidden');
+
+        // Switch to chat tab
+        switchTab('chat');
 
         hideLoading();
     } catch (error) {
@@ -274,7 +296,8 @@ function displayQuiz(quiz) {
     let html = `
         <div class="quiz-info">
             <h3>Quiz: ${quiz.topic}</h3>
-            <p>Difficulty: ${quiz.difficulty} | Questions: ${quiz.num_questions}</p>
+            <p>Difficulty: <strong>${quiz.difficulty}</strong> | Questions: ${quiz.num_questions}</p>
+            <p class="info-text">Your performance on this quiz will help me understand your strengths and areas for improvement.</p>
         </div>
     `;
 
@@ -296,9 +319,11 @@ function displayQuiz(quiz) {
     html += '<button class="btn btn-primary" onclick="submitQuiz()">Submit Quiz</button>';
 
     elements.quizContainer.innerHTML = html;
-    showSection(elements.quizSection);
 
-    addChatMessage('assistant', 'Quiz generated! Please scroll down to answer the questions.');
+    // Switch to quiz tab
+    switchTab('quiz');
+
+    addChatMessage('assistant', 'Quiz generated! Switch to the Quiz tab to answer the questions.');
 }
 
 // Submit Quiz
@@ -366,6 +391,7 @@ function displayFeedback(feedback) {
     const stats = feedback.overall_stats;
 
     let html = `
+        <h3>Overall Performance</h3>
         <div class="stats-grid">
             <div class="stat-card">
                 <h4>Overall Accuracy</h4>
@@ -393,6 +419,7 @@ function displayFeedback(feedback) {
                 <div class="topic-item weak">
                     <h4>${topic.topic}</h4>
                     <p>Accuracy: ${topic.accuracy.toFixed(1)}% | Attempts: ${topic.attempts}</p>
+                    <p><em>System automatically identified this as a weak area based on your performance</em></p>
                 </div>
             `;
         });
@@ -413,7 +440,7 @@ function displayFeedback(feedback) {
     }
 
     if (feedback.recommendations.length > 0) {
-        html += '<h3>Recommendations</h3><ul>';
+        html += '<h3>AI-Generated Recommendations</h3><ul>';
         feedback.recommendations.forEach(rec => {
             html += `<li>${rec}</li>`;
         });
@@ -421,7 +448,9 @@ function displayFeedback(feedback) {
     }
 
     elements.progressContainer.innerHTML = html;
-    showSection(elements.progressSection);
+
+    // Switch to progress tab
+    switchTab('progress');
 }
 
 // Generate Study Plan
@@ -457,22 +486,23 @@ elements.btnGeneratePlan.addEventListener('click', async () => {
 function displayStudyPlan(plan) {
     let html = `
         <div class="plan-overview">
-            <h3>Study Plan Overview</h3>
+            <h3>Adaptive Study Plan</h3>
             <p><strong>Duration:</strong> ${plan.timeline_days} days</p>
             <p><strong>Total Topics:</strong> ${plan.total_topics}</p>
             <p><strong>Estimated Hours:</strong> ${plan.total_estimated_hours}</p>
+            <p class="info-text">This plan is based on your current performance and adapts to your learning pace. Focus areas are prioritized based on your weak topics.</p>
             <p>${plan.explanation}</p>
         </div>
     `;
 
     if (plan.topics && plan.topics.length > 0) {
-        html += '<h3>Topics to Cover</h3><div class="topic-list">';
+        html += '<h3>Topics to Cover (Prioritized)</h3><div class="topic-list">';
         plan.topics.forEach(topic => {
             html += `
                 <div class="topic-item">
                     <h4>${topic.topic} (Priority ${topic.priority})</h4>
-                    <p>Urgency: ${topic.urgency} | Estimated Hours: ${topic.estimated_hours}</p>
-                    <p><em>${topic.reason}</em></p>
+                    <p>Urgency: <strong>${topic.urgency}</strong> | Estimated Hours: ${topic.estimated_hours}</p>
+                    <p><em>Why: ${topic.reason}</em></p>
                 </div>
             `;
         });
@@ -485,7 +515,7 @@ function displayStudyPlan(plan) {
             html += `
                 <div class="day-card">
                     <h4>Day ${day.day}</h4>
-                    <p>Hours: ${day.hours_allocated}</p>
+                    <p>Study Hours: ${day.hours_allocated}</p>
                     <ul>
                         ${day.topics.map(t => `<li>${t}</li>`).join('')}
                     </ul>
@@ -496,7 +526,9 @@ function displayStudyPlan(plan) {
     }
 
     elements.planContainer.innerHTML = html;
-    showSection(elements.planSection);
+
+    // Switch to plan tab
+    switchTab('plan');
 }
 
 // Make submitQuiz available globally

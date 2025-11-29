@@ -38,15 +38,9 @@
                     </select>
                 </div>
 
-                <div class="form-group">
-                    <label for="weak-areas">Weak Areas (comma-separated)</label>
-                    <input type="text" id="weak-areas" placeholder="e.g., Calculus, Organic Chemistry">
-                </div>
-
-                <div class="form-group">
-                    <label for="strong-areas">Strong Areas (comma-separated)</label>
-                    <input type="text" id="strong-areas" placeholder="e.g., Algebra, Mechanics">
-                </div>
+                <p class="info-text">
+                    Note: The system will automatically identify your weak and strong areas based on your quiz performance and learning patterns.
+                </p>
 
                 <button type="submit" class="btn btn-primary">Register & Start Learning</button>
             </form>
@@ -61,51 +55,69 @@
 
             <div class="action-buttons">
                 <button id="btn-start-session" class="btn btn-primary">Start Session</button>
-                <button id="btn-view-progress" class="btn btn-secondary">View Progress</button>
-                <button id="btn-generate-plan" class="btn btn-secondary">Generate Study Plan</button>
+                <button id="btn-view-progress" class="btn btn-secondary" disabled>View Progress</button>
+                <button id="btn-generate-plan" class="btn btn-secondary" disabled>Generate Study Plan</button>
                 <button id="btn-end-session" class="btn btn-danger hidden">End Session</button>
             </div>
-        </section>
 
-        <!-- Chat Section (hidden initially) -->
-        <section id="chat-section" class="section hidden">
-            <h2>💬 Chat with AI Tutor</h2>
+            <!-- Tab Navigation -->
+            <div id="tab-navigation" class="tab-nav hidden">
+                <button class="tab-btn active" data-tab="chat">💬 Chat</button>
+                <button class="tab-btn" data-tab="quiz">📝 Quiz</button>
+                <button class="tab-btn" data-tab="progress">📊 Progress</button>
+                <button class="tab-btn" data-tab="plan">📅 Study Plan</button>
+            </div>
 
-            <div id="chat-messages" class="chat-messages">
-                <div class="message assistant-message">
-                    <strong>AI Tutor:</strong> Hello! I'm your AI tutor. You can:
-                    <ul>
-                        <li>Ask me to create a study plan</li>
-                        <li>Request a quiz on any topic</li>
-                        <li>Ask for feedback on your progress</li>
-                        <li>Have a conversation about any subject</li>
-                    </ul>
-                    Try: "Generate a quiz on Calculus" or "Create a 30-day study plan"
+            <!-- Tab Content Container -->
+            <div id="tab-content" class="hidden">
+                <!-- Chat Tab -->
+                <div id="tab-chat" class="tab-content active">
+                    <div id="chat-messages" class="chat-messages">
+                        <div class="message assistant-message">
+                            <strong>AI Tutor:</strong> Hello! I'm your adaptive AI tutor. I'll help you learn effectively by:
+                            <ul>
+                                <li>Understanding your knowledge gaps through interactive quizzes</li>
+                                <li>Providing personalized study plans based on your performance</li>
+                                <li>Retrieving relevant learning materials when you need help</li>
+                                <li>Adapting to your learning pace and style</li>
+                            </ul>
+                            Try: "I'm struggling with Probability" or "Generate a quiz on Calculus" or "Show my progress"
+                        </div>
+                    </div>
+
+                    <div class="chat-input-container">
+                        <input type="text" id="chat-input" placeholder="Ask me anything about your studies..." disabled>
+                        <button id="btn-send-message" class="btn btn-primary" disabled>Send</button>
+                    </div>
+                </div>
+
+                <!-- Quiz Tab -->
+                <div id="tab-quiz" class="tab-content">
+                    <div id="quiz-container">
+                        <div class="empty-state">
+                            <p>No active quiz. Request a quiz through chat or use "Generate Study Plan" to get started!</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Progress Tab -->
+                <div id="tab-progress" class="tab-content">
+                    <div id="progress-container">
+                        <div class="empty-state">
+                            <p>No progress data yet. Take some quizzes to see your performance analysis!</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Study Plan Tab -->
+                <div id="tab-plan" class="tab-content">
+                    <div id="plan-container">
+                        <div class="empty-state">
+                            <p>No study plan yet. Click "Generate Study Plan" or ask me to create one!</p>
+                        </div>
+                    </div>
                 </div>
             </div>
-
-            <div class="chat-input-container">
-                <input type="text" id="chat-input" placeholder="Type your message..." disabled>
-                <button id="btn-send-message" class="btn btn-primary" disabled>Send</button>
-            </div>
-        </section>
-
-        <!-- Quiz Section (hidden initially) -->
-        <section id="quiz-section" class="section hidden">
-            <h2>📝 Quiz</h2>
-            <div id="quiz-container"></div>
-        </section>
-
-        <!-- Progress Section (hidden initially) -->
-        <section id="progress-section" class="section hidden">
-            <h2>📊 Progress Report</h2>
-            <div id="progress-container"></div>
-        </section>
-
-        <!-- Study Plan Section (hidden initially) -->
-        <section id="plan-section" class="section hidden">
-            <h2>📅 Study Plan</h2>
-            <div id="plan-container"></div>
         </section>
 
         <!-- Loading Overlay -->
