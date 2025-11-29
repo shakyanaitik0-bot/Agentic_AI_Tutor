@@ -161,7 +161,19 @@ agents:
     validate_questions: true  # Check question quality
     include_explanations: true
 
-  # Progress Tracker Agent
+  # Feedback Agent (Performance Analysis)
+  feedback:
+    model: "default"
+    temperature: 0.7  # Balanced for analysis and recommendations
+    weak_threshold: 60.0  # Topics below this % are considered weak
+    strong_threshold: 80.0  # Topics above this % are considered strong
+    mastery_threshold: 85.0  # Mastery achievement threshold
+    min_attempts_for_trend: 5  # Minimum attempts to detect trends
+    improvement_threshold: 10.0  # % increase to be "improving"
+    new_weak_topics_threshold: 2  # Trigger replanning if this many weak topics
+    stale_practice_days: 7  # Days without practice to be "stale"
+
+  # Progress Tracker Agent (Legacy - replaced by Feedback Agent)
   progress_tracker:
     model: "default"
     temperature: 0.4
