@@ -41,6 +41,9 @@ dependencies = [
 
     # Configuration
     "pyyaml>=6.0.1",
+
+    # Email Support
+    "pydantic[email]",
 ]
 
 [project.optional-dependencies]

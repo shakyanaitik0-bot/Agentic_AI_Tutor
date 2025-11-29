@@ -6,7 +6,7 @@ Main conversational interface using the Orchestrator agent.
 import logging
 from typing import Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from sqlalchemy.orm import Session as DBSessionType
 
 from app.api.dependencies import get_db, verify_active_session
@@ -23,14 +23,15 @@ class ChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=2000, description="User message")
     intent: str | None = Field(None, description="Optional explicit intent (plan/quiz/feedback/conversation)")
 
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "session_id": "123e4567-e89b-12d3-a456-426614174000",
                 "message": "Create a 30-day study plan for JEE",
                 "intent": None
             }
         }
+    )
 
 
 class ChatResponse(BaseModel):
@@ -39,8 +40,8 @@ class ChatResponse(BaseModel):
     message_id: int
     agent_response: Dict[str, Any]
 
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "session_id": "123e4567-e89b-12d3-a456-426614174000",
                 "message_id": 42,
@@ -51,6 +52,7 @@ class ChatResponse(BaseModel):
                 }
             }
         }
+    )
 
 
 @router.post("", response_model=ChatResponse)

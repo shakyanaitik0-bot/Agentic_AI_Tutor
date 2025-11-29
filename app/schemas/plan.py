@@ -1,9 +1,9 @@
 """
 Pydantic schemas for Study Plan-related API endpoints.
 """
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, validator, ConfigDict
 from typing import List, Optional, Dict, Any
-from datetime import datetime, date
+from datetime import datetime
 
 
 class StudyPlanRequest(BaseModel):
@@ -22,8 +22,8 @@ class StudyPlanRequest(BaseModel):
             raise ValueError('Timeline cannot exceed 365 days')
         return v
 
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "student_id": "123e4567-e89b-12d3-a456-426614174000",
                 "timeline_days": 30,
@@ -31,6 +31,7 @@ class StudyPlanRequest(BaseModel):
                 "hours_per_day": 4.5
             }
         }
+    )
 
 
 class StudyPlanTopic(BaseModel):
@@ -43,8 +44,8 @@ class StudyPlanTopic(BaseModel):
     difficulty_level: str = Field(..., description="Current difficulty to start with")
     subtopics: Optional[List[str]] = Field(default=[], description="Subtopics to cover")
 
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "topic": "Calculus - Derivatives",
                 "priority": 1,
@@ -55,18 +56,19 @@ class StudyPlanTopic(BaseModel):
                 "subtopics": ["Power rule", "Chain rule", "Product rule"]
             }
         }
+    )
 
 
 class DailySchedule(BaseModel):
     """Schema for daily study schedule"""
     day: int = Field(..., ge=1, description="Day number in the plan")
-    date: Optional[date] = Field(None, description="Actual date")
+    date: Optional[str] = Field(None, description="Actual date (YYYY-MM-DD)")
     topics: List[str] = Field(..., min_items=1, description="Topics to study this day")
     hours_allocated: float = Field(..., ge=0, description="Total hours for the day")
     focus_areas: List[str] = Field(default=[], description="Specific focus areas")
 
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "day": 1,
                 "date": "2024-01-15",
@@ -75,6 +77,7 @@ class DailySchedule(BaseModel):
                 "focus_areas": ["Power rule problems", "Solving quadratic equations"]
             }
         }
+    )
 
 
 class Milestone(BaseModel):
@@ -84,8 +87,8 @@ class Milestone(BaseModel):
     description: str = Field(..., description="Milestone description")
     topics_covered: List[str] = Field(default=[], description="Topics that should be covered by this point")
 
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "day": 7,
                 "percentage": 25,
@@ -93,6 +96,7 @@ class Milestone(BaseModel):
                 "topics_covered": ["Calculus basics", "Algebra fundamentals"]
             }
         }
+    )
 
 
 class StudyPlanResponse(BaseModel):
@@ -109,22 +113,23 @@ class StudyPlanResponse(BaseModel):
     generated_at: datetime = Field(default_factory=datetime.utcnow)
     total_estimated_hours: float = Field(..., description="Total study hours estimated")
 
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "plan_id": "plan_1234",
                 "student_id": "123e4567-e89b-12d3-a456-426614174000",
                 "exam_type": "JEE",
                 "timeline_days": 30,
                 "total_topics": 8,
-                "topics": [],  # List of StudyPlanTopic objects
-                "daily_schedule": [],  # List of DailySchedule objects
-                "milestones": [],  # List of Milestone objects
+                "topics": [],
+                "daily_schedule": [],
+                "milestones": [],
                 "explanation": "This 30-day plan focuses on your weak areas...",
                 "generated_at": "2024-01-15T10:00:00Z",
                 "total_estimated_hours": 120.0
             }
         }
+    )
 
 
 class PlanUpdateRequest(BaseModel):
@@ -134,8 +139,8 @@ class PlanUpdateRequest(BaseModel):
     adjustments: Dict[str, Any] = Field(..., description="Requested adjustments")
     reason: str = Field(..., description="Reason for update")
 
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "plan_id": "plan_1234",
                 "student_id": "123e4567-e89b-12d3-a456-426614174000",
@@ -146,3 +151,4 @@ class PlanUpdateRequest(BaseModel):
                 "reason": "Need more time for Physics topics"
             }
         }
+    )

@@ -1,7 +1,7 @@
 """
 Common Pydantic schemas shared across the application.
 """
-from pydantic import BaseModel, Field, EmailStr, validator
+from pydantic import BaseModel, Field, EmailStr, validator, ConfigDict
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 from enum import Enum
@@ -35,8 +35,8 @@ class StudentCreate(BaseModel):
     api_key_openai: Optional[str] = Field(None, description="Optional OpenAI API key")
     api_key_gemini: Optional[str] = Field(None, description="Optional Gemini API key")
 
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "name": "Rahul Sharma",
                 "email": "rahul@example.com",
@@ -49,6 +49,7 @@ class StudentCreate(BaseModel):
                 }
             }
         }
+    )
 
 
 class StudentResponse(BaseModel):
@@ -61,8 +62,7 @@ class StudentResponse(BaseModel):
     strong_areas: List[str]
     created_at: datetime
 
-    class Config:
-        from_attributes = True  # Pydantic v2 (was orm_mode in v1)
+    model_config = ConfigDict(from_attributes=True)
 
 
 class SessionCreate(BaseModel):
@@ -70,13 +70,14 @@ class SessionCreate(BaseModel):
     student_id: str = Field(..., description="Student ID")
     session_type: Optional[str] = Field("general", description="Type of session (quiz, study, feedback)")
 
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "student_id": "123e4567-e89b-12d3-a456-426614174000",
                 "session_type": "quiz"
             }
         }
+    )
 
 
 class SessionResponse(BaseModel):
@@ -90,8 +91,7 @@ class SessionResponse(BaseModel):
     questions_asked: int = 0
     questions_answered_correctly: int = 0
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class MessageResponse(BaseModel):
@@ -103,8 +103,7 @@ class MessageResponse(BaseModel):
     timestamp: datetime
     message_type: Optional[str] = Field(None, description="Type of message (chat, quiz, explanation)")
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ErrorResponse(BaseModel):
@@ -113,14 +112,15 @@ class ErrorResponse(BaseModel):
     message: str = Field(..., description="Error message")
     details: Optional[Dict[str, Any]] = Field(None, description="Additional error details")
 
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "error": "ValidationError",
                 "message": "Invalid student ID format",
                 "details": {"field": "student_id", "provided": "invalid-id"}
             }
         }
+    )
 
 
 class SuccessResponse(BaseModel):
@@ -129,11 +129,12 @@ class SuccessResponse(BaseModel):
     message: str = Field(..., description="Success message")
     data: Optional[Dict[str, Any]] = Field(None, description="Response data")
 
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "success": True,
                 "message": "Operation completed successfully",
                 "data": {"id": "123", "status": "active"}
             }
         }
+    )

@@ -1,7 +1,7 @@
 """
 Pydantic schemas for Feedback/Progress-related API endpoints.
 """
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, validator, ConfigDict
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 from enum import Enum
@@ -21,8 +21,8 @@ class FeedbackRequest(BaseModel):
     format: str = Field("text", description="Output format (text/json)")
     include_recommendations: bool = Field(True, description="Include personalized recommendations")
 
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "student_id": "123e4567-e89b-12d3-a456-426614174000",
                 "report_type": "student",
@@ -30,6 +30,7 @@ class FeedbackRequest(BaseModel):
                 "include_recommendations": True
             }
         }
+    )
 
 
 class OverallStats(BaseModel):
@@ -44,8 +45,8 @@ class OverallStats(BaseModel):
     mastery_topics_count: int = Field(..., ge=0, description="Number of mastered topics")
     recently_practiced_count: int = Field(..., ge=0, description="Topics practiced in last 7 days")
 
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "total_topics": 10,
                 "total_attempts": 87,
@@ -58,6 +59,7 @@ class OverallStats(BaseModel):
                 "recently_practiced_count": 6
             }
         }
+    )
 
 
 class TopicPerformance(BaseModel):
@@ -78,8 +80,8 @@ class TopicPerformance(BaseModel):
     trend_value: float = Field(..., description="Trend value (positive=improving)")
     common_mistakes: List[str] = Field(default=[], description="Common mistake patterns")
 
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "topic": "Calculus",
                 "difficulty": "medium",
@@ -98,6 +100,7 @@ class TopicPerformance(BaseModel):
                 "common_mistakes": ["Sign errors in chain rule"]
             }
         }
+    )
 
 
 class ProgressReportResponse(BaseModel):
@@ -113,8 +116,8 @@ class ProgressReportResponse(BaseModel):
     needs_replanning: bool = Field(..., description="Whether new study plan is recommended")
     report_summary: Optional[str] = Field(None, description="Human-readable summary")
 
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "student_id": "123e4567-e89b-12d3-a456-426614174000",
                 "generated_at": "2024-01-15T10:00:00Z",
@@ -131,6 +134,7 @@ class ProgressReportResponse(BaseModel):
                 "report_summary": "Overall performance is 70.1%. Focus on 3 weak areas..."
             }
         }
+    )
 
 
 class TopicProgressUpdate(BaseModel):
@@ -142,8 +146,8 @@ class TopicProgressUpdate(BaseModel):
     time_spent_minutes: float = Field(0, ge=0, description="Time spent")
     mistake_pattern: Optional[str] = Field(None, description="Mistake pattern if incorrect")
 
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "student_id": "123e4567-e89b-12d3-a456-426614174000",
                 "topic": "Calculus",
@@ -153,6 +157,7 @@ class TopicProgressUpdate(BaseModel):
                 "mistake_pattern": None
             }
         }
+    )
 
 
 class ProgressStatsResponse(BaseModel):
@@ -164,8 +169,8 @@ class ProgressStatsResponse(BaseModel):
     strong_count: int = Field(..., ge=0)
     last_activity: Optional[datetime] = None
 
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "student_id": "123e4567-e89b-12d3-a456-426614174000",
                 "overall_accuracy": 70.1,
@@ -175,3 +180,4 @@ class ProgressStatsResponse(BaseModel):
                 "last_activity": "2024-01-14T15:30:00Z"
             }
         }
+    )

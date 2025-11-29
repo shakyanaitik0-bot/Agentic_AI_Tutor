@@ -1,7 +1,7 @@
 """
 Pydantic schemas for Quiz-related API endpoints.
 """
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, validator, ConfigDict
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 
@@ -22,8 +22,8 @@ class QuizRequest(BaseModel):
             raise ValueError('Number of questions must be between 1 and 10')
         return v
 
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "topic": "Calculus",
                 "difficulty": "medium",
@@ -31,6 +31,7 @@ class QuizRequest(BaseModel):
                 "student_id": "123e4567-e89b-12d3-a456-426614174000"
             }
         }
+    )
 
 
 class QuizQuestion(BaseModel):
@@ -52,8 +53,8 @@ class QuizQuestion(BaseModel):
             raise ValueError('All options must be unique')
         return v
 
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "question_id": "q_1234",
                 "question_text": "What is the derivative of x^2?",
@@ -64,6 +65,7 @@ class QuizQuestion(BaseModel):
                 "difficulty": "easy"
             }
         }
+    )
 
 
 class QuizResponse(BaseModel):
@@ -76,8 +78,8 @@ class QuizResponse(BaseModel):
     generated_at: datetime = Field(default_factory=datetime.utcnow)
     student_id: str
 
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "quiz_id": "quiz_5678",
                 "topic": "Calculus",
@@ -88,6 +90,7 @@ class QuizResponse(BaseModel):
                 "student_id": "123e4567-e89b-12d3-a456-426614174000"
             }
         }
+    )
 
 
 class QuizSubmission(BaseModel):
@@ -104,14 +107,15 @@ class QuizSubmission(BaseModel):
                 raise ValueError('Answer indices must be between 0 and 3')
         return v
 
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "quiz_id": "quiz_5678",
                 "student_id": "123e4567-e89b-12d3-a456-426614174000",
                 "answers": [1, 2, 0]
             }
         }
+    )
 
 
 class QuestionResult(BaseModel):
@@ -134,8 +138,8 @@ class QuizResult(BaseModel):
     results: List[QuestionResult] = Field(..., description="Per-question results")
     graded_at: datetime = Field(default_factory=datetime.utcnow)
 
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "quiz_id": "quiz_5678",
                 "student_id": "123e4567-e89b-12d3-a456-426614174000",
@@ -147,3 +151,4 @@ class QuizResult(BaseModel):
                 "graded_at": "2024-01-15T10:35:00Z"
             }
         }
+    )
