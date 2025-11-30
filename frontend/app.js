@@ -124,38 +124,47 @@ async function apiRequest(endpoint, options = {}) {
     }
 }
 
-// Step 1: Email Continue Button
-document.getElementById('btn-continue').addEventListener('click', async () => {
-    const email = document.getElementById('student-email').value;
+// Toggle between login and registration forms
+document.getElementById('link-register').addEventListener('click', (e) => {
+    e.preventDefault();
+    document.getElementById('login-step').classList.add('hidden');
+    elements.registrationForm.classList.remove('hidden');
+});
 
-    if (!email || !email.includes('@')) {
-        alert('Please enter a valid email address');
+document.getElementById('link-login').addEventListener('click', (e) => {
+    e.preventDefault();
+    elements.registrationForm.classList.add('hidden');
+    document.getElementById('login-step').classList.remove('hidden');
+});
+
+// Login Handler
+document.getElementById('btn-login').addEventListener('click', async () => {
+    const email = document.getElementById('login-email').value;
+    const password = document.getElementById('login-password').value;
+
+    if (!email || !password) {
+        alert('Please enter both email and password');
         return;
     }
 
     showLoading();
 
     try {
-        // Try to login with just email (will work if user exists)
         const data = await apiRequest('/students/login', {
             method: 'POST',
-            body: JSON.stringify({
-                email: email,
-                name: 'Temp', // Required by schema but ignored if user exists
-                exam_type: 'JEE', // Required by schema but ignored if user exists
-                weak_areas: [],
-                strong_areas: [],
-                learning_preferences: {}
-            })
+            body: JSON.stringify({ email, password })
         });
 
-        // User exists - login successful
+        // Login successful
         state.studentId = data.id;
         state.studentData = data;
 
         // Update dashboard
         elements.displayName.textContent = data.name;
         elements.displayExam.textContent = data.exam_type;
+
+        // Load previous session if exists
+        await loadPreviousSession();
 
         // Show dashboard
         elements.registrationSection.classList.add('hidden');
@@ -164,20 +173,11 @@ document.getElementById('btn-continue').addEventListener('click', async () => {
         hideLoading();
     } catch (error) {
         hideLoading();
-
-        // New user - show registration form
-        document.getElementById('email-step').classList.add('hidden');
-        elements.registrationForm.classList.remove('hidden');
+        alert('Login failed: ' + error.message);
     }
 });
 
-// Step 2: Back to Email
-document.getElementById('btn-back-to-email').addEventListener('click', () => {
-    document.getElementById('email-step').classList.remove('hidden');
-    elements.registrationForm.classList.add('hidden');
-});
-
-// Step 3: Complete Registration (removed weak/strong areas - system discovers these automatically)
+// Registration Handler
 elements.registrationForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
@@ -187,6 +187,7 @@ elements.registrationForm.addEventListener('submit', async (e) => {
         const formData = {
             name: document.getElementById('student-name').value,
             email: document.getElementById('student-email').value,
+            password: document.getElementById('student-password').value,
             exam_type: document.getElementById('exam-type').value,
             weak_areas: [],  // Will be discovered through quizzes
             strong_areas: [], // Will be discovered through quizzes
@@ -196,7 +197,7 @@ elements.registrationForm.addEventListener('submit', async (e) => {
             }
         };
 
-        const data = await apiRequest('/students/login', {
+        const data = await apiRequest('/students/register', {
             method: 'POST',
             body: JSON.stringify(formData)
         });
@@ -218,6 +219,79 @@ elements.registrationForm.addEventListener('submit', async (e) => {
         alert('Registration failed: ' + error.message);
     }
 });
+
+// Load Previous Session (if exists)
+async function loadPreviousSession() {
+    try {
+        // Get student's most recent active session
+        const response = await fetch(`${API_BASE_URL}/sessions?student_id=${state.studentId}`);
+
+        if (!response.ok) {
+            // No previous sessions - that's fine for new users
+            return;
+        }
+
+        const sessions = await response.json();
+
+        if (sessions && sessions.length > 0) {
+            // Get the most recent session
+            const lastSession = sessions[0];
+
+            if (lastSession.is_active) {
+                // Resume active session
+                state.sessionId = lastSession.id;
+                elements.sessionStatus.textContent = 'Active ✓';
+                elements.btnStartSession.classList.add('hidden');
+                elements.btnEndSession.classList.remove('hidden');
+
+                // Enable features
+                elements.chatInput.disabled = false;
+                elements.btnSendMessage.disabled = false;
+                elements.btnViewProgress.disabled = false;
+                elements.btnGeneratePlan.disabled = false;
+
+                // Show tabs
+                elements.tabNavigation.classList.remove('hidden');
+                elements.tabContent.classList.remove('hidden');
+
+                // Load chat messages
+                await loadSessionMessages(lastSession.id);
+
+                addChatMessage('assistant', 'Welcome back! Your previous session has been restored.');
+            }
+        }
+    } catch (error) {
+        console.log('No previous session to load:', error);
+        // Not a critical error - user can start a new session
+    }
+}
+
+// Load Session Messages
+async function loadSessionMessages(sessionId) {
+    try {
+        const response = await fetch(`${API_BASE_URL}/sessions/${sessionId}/messages`);
+
+        if (!response.ok) {
+            return;
+        }
+
+        const messages = await response.json();
+
+        // Clear existing messages (except welcome message)
+        elements.chatMessages.innerHTML = '';
+
+        // Add welcome message
+        addChatMessage('assistant', 'Previous conversation restored:');
+
+        // Load all messages
+        messages.forEach(msg => {
+            addChatMessage(msg.role, msg.content);
+        });
+
+    } catch (error) {
+        console.log('Could not load messages:', error);
+    }
+}
 
 // Start Session
 elements.btnStartSession.addEventListener('click', async () => {
