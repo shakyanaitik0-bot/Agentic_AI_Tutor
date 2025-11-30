@@ -294,13 +294,28 @@ Always create questions that:
         query = f"{topic} {difficulty} level concepts explanations examples"
 
         # Use RAG to get relevant content
+        # First try student-specific documents, then fall back to general content
+        logger.info(f"Searching for student-specific documents with student_id={self.student.id}")
         context, sources = self.rag.get_context(
             query=query,
             top_k=3,
-            metadata_filter={"exam_type": self.student.exam_type}
+            metadata_filter={"student_id": self.student.id}
         )
+        logger.info(f"Student-specific search: Found {len(sources)} sources, context length: {len(context)}")
+
+        # If no student-specific content found, try general content for exam type
+        if not context.strip():
+            logger.info(f"No student-specific content found, trying general content for exam_type={self.student.exam_type}")
+            context, sources = self.rag.get_context(
+                query=query,
+                top_k=3,
+                metadata_filter={"exam_type": self.student.exam_type}
+            )
+            logger.info(f"General search: Found {len(sources)} sources")
 
         logger.info(f"Retrieved {len(sources)} sources for quiz generation")
+        if sources:
+            logger.debug(f"First source metadata: {sources[0].get('metadata', {})}")
         return context
 
     def _generate_quiz(

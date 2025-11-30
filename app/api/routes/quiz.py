@@ -155,21 +155,19 @@ def submit_quiz(
             db=db
         )
 
-        # Grade quiz
-        # Note: We need to retrieve the original quiz data
-        # For now, we'll create a placeholder that uses the submission
-        # In production, quiz data should be stored in database or cache
+        # Retrieve quiz data from session state
+        session_state = active_session.agent_state or {}
+        stored_quiz = session_state.get("last_quiz")
 
-        # Placeholder quiz data structure for grading
-        quiz_data = {
-            "quiz_id": submission.quiz_id,
-            "topic": "Unknown",  # Should be retrieved from stored quiz
-            "difficulty": "medium",
-            "questions": []  # Should be retrieved from stored quiz
-        }
+        if not stored_quiz or stored_quiz.get("quiz_id") != submission.quiz_id:
+            logger.warning(f"Quiz {submission.quiz_id} not found in session state")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Quiz not found. Please generate a new quiz."
+            )
 
         # Grade the quiz (this will update Progress records)
-        result = quiz_agent.grade_quiz(quiz_data, submission.answers)
+        result = quiz_agent.grade_quiz(stored_quiz, submission.answers)
 
         # Convert to QuizResult format
         response = QuizResult(

@@ -6,7 +6,7 @@ Combines all route modules into a single router for the main app.
 from fastapi import APIRouter
 
 # Import all route modules
-from app.api.routes import students, sessions, chat, quiz, feedback, plan
+from app.api.routes import students, sessions, chat, quiz, feedback, plan, documents
 
 # Create main API router
 api_router = APIRouter()
@@ -18,3 +18,4 @@ api_router.include_router(chat.router, prefix="/chat", tags=["Chat"])
 api_router.include_router(quiz.router, prefix="/quiz", tags=["Quiz"])
 api_router.include_router(feedback.router, prefix="/feedback", tags=["Feedback"])
 api_router.include_router(plan.router, prefix="/plan", tags=["Study Plans"])
+api_router.include_router(documents.router, prefix="/documents", tags=["Documents"])

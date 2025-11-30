@@ -44,8 +44,14 @@ const elements = {
         chat: document.getElementById('tab-chat'),
         quiz: document.getElementById('tab-quiz'),
         progress: document.getElementById('tab-progress'),
-        plan: document.getElementById('tab-plan')
-    }
+        plan: document.getElementById('tab-plan'),
+        documents: document.getElementById('tab-documents')
+    },
+
+    // Document elements
+    documentUploadForm: document.getElementById('document-upload-form'),
+    documentsList: document.getElementById('documents-list'),
+    uploadStatus: document.getElementById('upload-status')
 };
 
 // Utility Functions
@@ -166,6 +172,9 @@ document.getElementById('btn-login').addEventListener('click', async () => {
         // Load previous session if exists
         await loadPreviousSession();
 
+        // Load user's documents
+        await initializeDocuments();
+
         // Show dashboard
         elements.registrationSection.classList.add('hidden');
         elements.dashboardSection.classList.remove('hidden');
@@ -208,6 +217,9 @@ elements.registrationForm.addEventListener('submit', async (e) => {
         // Update dashboard
         elements.displayName.textContent = data.name;
         elements.displayExam.textContent = data.exam_type;
+
+        // Load user's documents (will be empty for new users)
+        await initializeDocuments();
 
         // Show dashboard
         elements.registrationSection.classList.add('hidden');
@@ -721,6 +733,131 @@ function displayStudyPlan(plan) {
 
 // Make submitQuiz available globally
 window.submitQuiz = submitQuiz;
+
+// Document Upload Handler
+elements.documentUploadForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const fileInput = document.getElementById('document-file');
+    const subjectInput = document.getElementById('document-subject');
+    const file = fileInput.files[0];
+
+    if (!file) {
+        alert('Please select a file');
+        return;
+    }
+
+    // Check file size (10MB limit)
+    const maxSize = 10 * 1024 * 1024;
+    if (file.size > maxSize) {
+        alert('File too large. Maximum size is 10MB');
+        return;
+    }
+
+    showLoading();
+
+    try {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('student_id', state.studentId);
+        if (subjectInput.value) {
+            formData.append('subject', subjectInput.value);
+        }
+
+        const response = await fetch(`${API_BASE_URL}/documents/upload`, {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.detail || 'Upload failed');
+        }
+
+        hideLoading();
+
+        // Show success message
+        elements.uploadStatus.innerHTML = `
+            <div class="quiz-result passed">
+                <h4>✓ Upload Successful!</h4>
+                <p><strong>${data.filename}</strong> has been processed.</p>
+                <p>${data.num_chunks} text chunks added to your knowledge base.</p>
+                <p class="info-text">${data.message}</p>
+            </div>
+        `;
+        elements.uploadStatus.classList.remove('hidden');
+
+        // Clear form
+        fileInput.value = '';
+        subjectInput.value = '';
+
+        // Refresh documents list
+        await loadStudentDocuments();
+
+        // Hide success message after 5 seconds
+        setTimeout(() => {
+            elements.uploadStatus.classList.add('hidden');
+        }, 5000);
+
+    } catch (error) {
+        hideLoading();
+        alert('Upload failed: ' + error.message);
+    }
+});
+
+// Load Student Documents
+async function loadStudentDocuments() {
+    if (!state.studentId) return;
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/documents/list/${state.studentId}`);
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.detail || 'Failed to load documents');
+        }
+
+        if (data.documents.length === 0) {
+            elements.documentsList.innerHTML = `
+                <div class="empty-state">
+                    <p>No documents uploaded yet. Upload your first study material above!</p>
+                </div>
+            `;
+            return;
+        }
+
+        // Display documents
+        let html = '<div class="topic-list">';
+        data.documents.forEach(doc => {
+            html += `
+                <div class="topic-item">
+                    <h4>📄 ${doc.filename}</h4>
+                    <p><strong>Subject:</strong> ${doc.subject}</p>
+                    <p><strong>Chunks:</strong> ${doc.num_chunks} text segments</p>
+                    <p style="font-size: 0.85em; color: #718096;">
+                        Your quizzes and AI responses will now reference this document!
+                    </p>
+                </div>
+            `;
+        });
+        html += '</div>';
+
+        html += `<p class="info-text" style="margin-top: 20px;">
+            <strong>Total:</strong> ${data.documents.length} document(s), ${data.total_chunks} text chunks
+        </p>`;
+
+        elements.documentsList.innerHTML = html;
+
+    } catch (error) {
+        console.error('Error loading documents:', error);
+    }
+}
+
+// Load documents when user logs in
+async function initializeDocuments() {
+    await loadStudentDocuments();
+}
 
 // Initialize
 console.log('Agentic AI Tutor initialized');

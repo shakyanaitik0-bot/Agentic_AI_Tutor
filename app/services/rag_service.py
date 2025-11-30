@@ -431,6 +431,87 @@ class RAGService:
         except Exception:
             return False
 
+    def add_documents(
+        self,
+        chunks: List[Dict[str, Any]],
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Add processed document chunks to the vector store.
+
+        This is a convenience method for adding chunks from DocumentProcessor.
+
+        Args:
+            chunks: List of chunk dicts with 'text' and 'metadata' keys
+            metadata: Optional additional metadata to add to all chunks
+
+        Returns:
+            Dict: Upload statistics
+        """
+        # Convert chunks to Document objects
+        documents = []
+        for chunk in chunks:
+            chunk_metadata = {**chunk.get("metadata", {})}
+            if metadata:
+                chunk_metadata.update(metadata)
+
+            doc = Document(
+                content=chunk["text"],
+                metadata=chunk_metadata
+            )
+            documents.append(doc)
+
+        # Upload to vector store
+        return self.upload_documents(documents)
+
+    def list_student_documents(self, student_id: str) -> List[Dict[str, Any]]:
+        """
+        List all documents uploaded by a student.
+
+        Args:
+            student_id: Student ID
+
+        Returns:
+            List of document summaries with metadata
+        """
+        try:
+            # Query index for all vectors with this student_id
+            # Note: Pinecone doesn't have a native "list by metadata" feature
+            # We'll use a dummy query to fetch vectors with filter
+
+            # Create a dummy embedding (all zeros)
+            dummy_embedding = [0.0] * self.dimension
+
+            # Query with student_id filter to get all matching vectors
+            results = self.index.query(
+                vector=dummy_embedding,
+                filter={"student_id": student_id},
+                top_k=10000,  # Get all documents
+                include_metadata=True
+            )
+
+            # Group by filename to get unique documents
+            documents_by_file = {}
+            for match in results.get("matches", []):
+                metadata = match.get("metadata", {})
+                filename = metadata.get("filename", "unknown")
+
+                if filename not in documents_by_file:
+                    documents_by_file[filename] = {
+                        "filename": filename,
+                        "subject": metadata.get("subject", "General"),
+                        "num_chunks": 0,
+                        "uploaded_at": metadata.get("uploaded_at", "Unknown")
+                    }
+
+                documents_by_file[filename]["num_chunks"] += 1
+
+            return list(documents_by_file.values())
+
+        except Exception as e:
+            logger.error(f"Error listing documents for student {student_id}: {e}")
+            return []
+
     def __repr__(self) -> str:
         """String representation"""
         return (
@@ -458,3 +539,23 @@ def create_rag_service(
         embedding_service=embedding_service,
         index_name=index_name
     )
+
+
+# Global singleton instance
+_rag_service_instance: Optional[RAGService] = None
+
+
+def get_rag_service() -> RAGService:
+    """
+    Get or create singleton RAG service instance.
+
+    Returns:
+        RAGService: Shared RAG service instance
+    """
+    global _rag_service_instance
+
+    if _rag_service_instance is None:
+        logger.info("Initializing singleton RAG service instance")
+        _rag_service_instance = create_rag_service()
+
+    return _rag_service_instance

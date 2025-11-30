@@ -93,6 +93,7 @@
                 <button class="tab-btn" data-tab="quiz">📝 Quiz</button>
                 <button class="tab-btn" data-tab="progress">📊 Progress</button>
                 <button class="tab-btn" data-tab="plan">📅 Study Plan</button>
+                <button class="tab-btn" data-tab="documents">📚 My Documents</button>
             </div>
 
             <!-- Tab Content Container -->
@@ -141,6 +142,39 @@
                     <div id="plan-container">
                         <div class="empty-state">
                             <p>No study plan yet. Click "Generate Study Plan" or ask me to create one!</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Documents Tab -->
+                <div id="tab-documents" class="tab-content">
+                    <div class="section">
+                        <h3>Upload Study Materials</h3>
+                        <p class="info-text">Upload your own study materials (PDF, TXT, DOCX) to personalize quiz generation and get better context-aware help!</p>
+
+                        <form id="document-upload-form">
+                            <div class="form-group">
+                                <label for="document-file">Select File (PDF, TXT, DOCX - Max 10MB)</label>
+                                <input type="file" id="document-file" accept=".pdf,.txt,.docx,.doc,.md" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="document-subject">Subject/Topic (Optional)</label>
+                                <input type="text" id="document-subject" placeholder="e.g., Calculus, Physics, Chemistry">
+                            </div>
+
+                            <button type="submit" class="btn btn-primary">📤 Upload Document</button>
+                        </form>
+
+                        <div id="upload-status" class="hidden"></div>
+                    </div>
+
+                    <div class="section">
+                        <h3>My Uploaded Documents</h3>
+                        <div id="documents-list">
+                            <div class="empty-state">
+                                <p>No documents uploaded yet. Upload your first study material above!</p>
+                            </div>
                         </div>
                     </div>
                 </div>
