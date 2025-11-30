@@ -71,8 +71,10 @@ class Quiz:
         self,
         topic: str,
         difficulty: str,
-        num_questions: int
+        num_questions: int,
+        quiz_id: Optional[str] = None
     ):
+        self.quiz_id = quiz_id or f"quiz_{int(datetime.now().timestamp() * 1000)}"
         self.topic = topic
         self.difficulty = difficulty
         self.num_questions = num_questions
@@ -86,6 +88,7 @@ class Quiz:
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary"""
         return {
+            "quiz_id": self.quiz_id,
             "topic": self.topic,
             "difficulty": self.difficulty,
             "num_questions": len(self.questions),

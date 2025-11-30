@@ -298,12 +298,14 @@ async function loadSessionMessages(sessionId) {
                         displayQuiz(agentData.quiz);
                         addChatMessage('assistant', `[Quiz: ${agentData.quiz.topic}]`);
                     }
-                    else if (agentData.plan) {
-                        displayStudyPlan(agentData.plan);
-                        addChatMessage('assistant', `[Study Plan: ${agentData.plan.timeline_days} days]`);
+                    else if (agentData.study_plan || agentData.plan) {
+                        const planData = agentData.study_plan || agentData.plan;
+                        displayStudyPlan(planData);
+                        addChatMessage('assistant', `[Study Plan: ${planData.timeline_days} days]`);
                     }
-                    else if (agentData.feedback) {
-                        displayFeedback(agentData.feedback);
+                    else if (agentData.data || agentData.feedback) {
+                        const feedbackData = agentData.data || agentData.feedback;
+                        displayFeedback(feedbackData);
                         addChatMessage('assistant', '[Progress Feedback Generated]');
                     }
                     else if (agentData.response) {
@@ -423,12 +425,12 @@ async function sendMessage() {
         if (response.quiz) {
             // Display quiz
             displayQuiz(response.quiz);
-        } else if (response.plan) {
-            // Display study plan
-            displayStudyPlan(response.plan);
-        } else if (response.feedback) {
-            // Display feedback
-            displayFeedback(response.feedback);
+        } else if (response.study_plan || response.plan) {
+            // Display study plan (handle both study_plan and plan keys)
+            displayStudyPlan(response.study_plan || response.plan);
+        } else if (response.data || response.feedback) {
+            // Display feedback (handle both data and feedback keys)
+            displayFeedback(response.data || response.feedback);
         } else if (response.response) {
             // Regular conversation
             addChatMessage('assistant', response.response);
