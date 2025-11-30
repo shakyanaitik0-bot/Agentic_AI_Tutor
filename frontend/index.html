@@ -19,24 +19,39 @@
             <h2>Welcome to AI Tutor</h2>
             <p class="subtitle-text">Sign in or create a new account to start learning</p>
 
-            <!-- Step 1: Email Input -->
-            <div id="email-step">
+            <!-- Step 1: Login Form -->
+            <div id="login-step">
                 <div class="form-group">
-                    <label for="student-email">Email Address</label>
-                    <input type="email" id="student-email" required placeholder="your.email@example.com">
+                    <label for="login-email">Email Address</label>
+                    <input type="email" id="login-email" required placeholder="your.email@example.com">
                 </div>
-                <button type="button" id="btn-continue" class="btn btn-primary">Continue</button>
+                <div class="form-group">
+                    <label for="login-password">Password</label>
+                    <input type="password" id="login-password" required placeholder="Enter your password">
+                </div>
+                <button type="button" id="btn-login" class="btn btn-primary">Login</button>
+                <p class="link-text">New user? <a href="#" id="link-register">Create an account</a></p>
             </div>
 
-            <!-- Step 2: New User Details (hidden initially) -->
+            <!-- Step 2: Registration Form (hidden initially) -->
             <form id="registration-form" class="hidden">
                 <p class="info-text">
-                    Welcome! Let's set up your profile.
+                    Create your account to start learning
                 </p>
 
                 <div class="form-group">
                     <label for="student-name">Full Name</label>
                     <input type="text" id="student-name" required placeholder="Enter your name">
+                </div>
+
+                <div class="form-group">
+                    <label for="student-email">Email Address</label>
+                    <input type="email" id="student-email" required placeholder="your.email@example.com">
+                </div>
+
+                <div class="form-group">
+                    <label for="student-password">Password</label>
+                    <input type="password" id="student-password" required minlength="6" placeholder="Minimum 6 characters">
                 </div>
 
                 <div class="form-group">
@@ -53,8 +68,8 @@
                     The system will automatically identify your weak and strong areas based on your quiz performance.
                 </p>
 
-                <button type="submit" class="btn btn-primary">Start Learning</button>
-                <button type="button" id="btn-back-to-email" class="btn btn-secondary">Back</button>
+                <button type="submit" class="btn btn-primary">Create Account</button>
+                <p class="link-text">Already have an account? <a href="#" id="link-login">Login</a></p>
             </form>
         </section>
 

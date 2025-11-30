@@ -8,42 +8,34 @@ dependencies = [
     # Web Framework
     "fastapi>=0.109.0",
     "uvicorn[standard]>=0.27.0",
-    
     # Database
     "sqlalchemy>=2.0.25",
     "alembic>=1.13.1",
-    
     # Validation & Config
     "pydantic>=2.5.3",
     "pydantic-settings>=2.1.0",
     "python-dotenv>=1.0.0",
-    
     # LLM & AI
     "openai>=1.10.0",
     "google-generativeai>=0.3.2",
     "sentence-transformers>=2.2.2",
-    "torch>=2.0.0",  # Required for sentence-transformers
-    
+    "torch>=2.0.0", # Required for sentence-transformers
     # Vector Database
     "pinecone>=3.0.0",
-    
     # Document Processing
     "pypdf>=4.0.0",
     "python-multipart>=0.0.6",
-    
     # Utilities
     "aiofiles>=23.2.1",
     "tiktoken>=0.5.2",
     "requests>=2.31.0",
-
     # Security & Encryption
     "cryptography>=41.0.0",
-
     # Configuration
     "pyyaml>=6.0.1",
-
     # Email Support
     "pydantic[email]",
+    "bcrypt>=5.0.0",
 ]
 
 [project.optional-dependencies]

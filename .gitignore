@@ -6,3 +6,4 @@ uv.lock
 .claude/
 data/
 logs/
+SETUP_INSTRUCTIONS.md

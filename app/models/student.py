@@ -11,6 +11,7 @@ from cryptography.fernet import Fernet
 import os
 import json
 import logging
+import bcrypt
 
 from app.core.database import Base
 
@@ -29,6 +30,7 @@ class Student(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String(100), nullable=False, index=True)
     email = Column(String(255), unique=True, nullable=False, index=True)
+    password_hash = Column(String(255), nullable=False)  # Bcrypt hashed password
 
     # Exam preparation context
     exam_type = Column(String(20), nullable=False, index=True)  # JEE, SAT, GRE, etc.
@@ -243,6 +245,36 @@ class Student(Base):
     def update_last_active(self) -> None:
         """Update the last active timestamp"""
         self.last_active = datetime.utcnow()
+
+    def set_password(self, password: str) -> None:
+        """
+        Hash and store password using bcrypt.
+
+        Args:
+            password: Plain text password
+        """
+        password_bytes = password.encode('utf-8')
+        salt = bcrypt.gensalt()
+        self.password_hash = bcrypt.hashpw(password_bytes, salt).decode('utf-8')
+        logger.debug(f"Password set for student {self.email}")
+
+    def verify_password(self, password: str) -> bool:
+        """
+        Verify password against stored hash.
+
+        Args:
+            password: Plain text password to verify
+
+        Returns:
+            bool: True if password matches, False otherwise
+        """
+        try:
+            password_bytes = password.encode('utf-8')
+            hash_bytes = self.password_hash.encode('utf-8')
+            return bcrypt.checkpw(password_bytes, hash_bytes)
+        except Exception as e:
+            logger.error(f"Password verification error for {self.email}: {e}")
+            return False
 
     def __repr__(self):
         return f"<Student(id='{self.id}', name='{self.name}', exam_type='{self.exam_type}')>"

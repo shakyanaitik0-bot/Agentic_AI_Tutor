@@ -21,10 +21,26 @@ class DifficultyLevel(str, Enum):
     HARD = "hard"
 
 
+class StudentLogin(BaseModel):
+    """Request schema for student login"""
+    email: EmailStr = Field(..., description="Student's email address")
+    password: str = Field(..., description="Password")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "email": "rahul@example.com",
+                "password": "mypassword123"
+            }
+        }
+    )
+
+
 class StudentCreate(BaseModel):
     """Request schema for creating a new student"""
     name: str = Field(..., min_length=2, max_length=100, description="Student's full name")
     email: EmailStr = Field(..., description="Student's email address")
+    password: str = Field(..., min_length=6, description="Password (min 6 characters)")
     exam_type: ExamType = Field(..., description="Type of exam preparing for")
     weak_areas: Optional[List[str]] = Field(default=[], description="Known weak topics")
     strong_areas: Optional[List[str]] = Field(default=[], description="Known strong topics")
