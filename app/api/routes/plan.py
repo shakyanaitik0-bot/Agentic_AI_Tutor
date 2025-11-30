@@ -80,8 +80,13 @@ def generate_study_plan(
 
         result = planner.execute(user_message, **kwargs)
 
-        # Extract plan data
-        plan_data = result.get("plan", {})
+        # Commit session state changes (planner may have updated agent_state)
+        db.commit()
+        db.refresh(active_session)
+
+        # Extract plan data (PlannerAgent returns "study_plan" key)
+        plan_data = result.get("study_plan", {})
+        explanation = result.get("explanation", "Study plan generated successfully")
 
         # Convert to StudyPlanResponse
         response = StudyPlanResponse(
@@ -89,12 +94,12 @@ def generate_study_plan(
             student_id=request.student_id,
             exam_type=student.exam_type,
             timeline_days=plan_data.get("timeline_days", request.timeline_days),
-            total_topics=len(plan_data.get("topics", [])),
+            total_topics=plan_data.get("total_topics", 0),
             topics=plan_data.get("topics", []),
             daily_schedule=plan_data.get("daily_schedule", []),
             milestones=plan_data.get("milestones", []),
-            explanation=plan_data.get("explanation", "Study plan generated successfully"),
-            total_estimated_hours=plan_data.get("total_estimated_hours", 0.0)
+            explanation=explanation,
+            total_estimated_hours=plan_data.get("total_hours", 0.0)
         )
 
         logger.info(f"Generated plan {response.plan_id} with {response.total_topics} topics")

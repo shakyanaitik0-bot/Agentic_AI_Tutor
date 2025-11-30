@@ -32,8 +32,10 @@ class StudyPlan:
         student_id: str,
         exam_type: str,
         timeline_days: int,
-        generated_at: datetime
+        generated_at: datetime,
+        plan_id: Optional[str] = None
     ):
+        self.plan_id = plan_id or f"plan_{int(generated_at.timestamp() * 1000)}"
         self.student_id = student_id
         self.exam_type = exam_type
         self.timeline_days = timeline_days
@@ -47,23 +49,27 @@ class StudyPlan:
         self,
         topic: str,
         priority: int,
-        difficulty: str,
+        difficulty_level: str,
         estimated_hours: float,
-        reason: str
+        reason: str,
+        urgency: str = "medium",
+        subtopics: Optional[List[str]] = None
     ):
         """Add a topic to the study plan"""
         self.topics.append({
             "topic": topic,
             "priority": priority,
-            "difficulty": difficulty,
-            "estimated_hours": estimated_hours,
+            "urgency": urgency,
             "reason": reason,
-            "status": "pending"
+            "estimated_hours": estimated_hours,
+            "difficulty_level": difficulty_level,
+            "subtopics": subtopics or []
         })
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for storage/display"""
         return {
+            "plan_id": self.plan_id,
             "student_id": self.student_id,
             "exam_type": self.exam_type,
             "timeline_days": self.timeline_days,
@@ -375,12 +381,21 @@ Always explain your reasoning in a way that helps students understand the 'why' 
             if hours_allocated + estimated_hours > available_hours:
                 estimated_hours = available_hours - hours_allocated
 
+            # Map string priority to urgency and numeric priority
+            string_priority = topic_info.get("priority", "medium")
+            urgency_map = {"urgent": "high", "high": "high", "medium": "medium", "low": "low"}
+            urgency = urgency_map.get(string_priority, "medium")
+
+            # Numeric priority: 1=highest, 5=lowest (based on order in list)
+            numeric_priority = idx + 1
+
             plan.add_topic(
                 topic=topic_info["topic"],
-                priority=idx + 1,
-                difficulty=topic_info["difficulty"],
+                priority=numeric_priority,
+                difficulty_level=topic_info["difficulty"],
                 estimated_hours=estimated_hours,
-                reason=topic_info["reason"]
+                reason=topic_info["reason"],
+                urgency=urgency
             )
 
             hours_allocated += estimated_hours
@@ -413,35 +428,34 @@ Always explain your reasoning in a way that helps students understand the 'why' 
             hours_remaining = hours_per_day
 
             # Allocate topics to this day
+            topic_names = []
+            focus_areas = []
             while hours_remaining > 0 and topics:
                 topic = topics[0]
                 hours_needed = topic["estimated_hours"]
 
                 if hours_needed <= hours_remaining:
                     # Topic fits entirely in this day
-                    day_topics.append({
-                        "topic": topic["topic"],
-                        "hours": hours_needed,
-                        "difficulty": topic["difficulty"]
-                    })
+                    topic_names.append(topic["topic"])
+                    focus_areas.append(f"{topic['topic']} ({hours_needed:.1f}h)")
                     hours_remaining -= hours_needed
                     topics.pop(0)
                 else:
                     # Topic needs to be split across days
-                    day_topics.append({
-                        "topic": topic["topic"],
-                        "hours": hours_remaining,
-                        "difficulty": topic["difficulty"]
-                    })
+                    topic_names.append(topic["topic"])
+                    focus_areas.append(f"{topic['topic']} - Part 1 ({hours_remaining:.1f}h)")
                     topic["estimated_hours"] -= hours_remaining
                     hours_remaining = 0
 
-            schedule.append({
-                "day": day,
-                "date": (current_date + timedelta(days=day - 1)).strftime("%Y-%m-%d"),
-                "topics": day_topics,
-                "total_hours": hours_per_day
-            })
+            # Only add days that have topics (schema requires min_items=1)
+            if topic_names:
+                schedule.append({
+                    "day": day,
+                    "date": (current_date + timedelta(days=day - 1)).strftime("%Y-%m-%d"),
+                    "topics": topic_names,
+                    "hours_allocated": hours_per_day,
+                    "focus_areas": focus_areas
+                })
 
         return schedule
 
@@ -467,14 +481,19 @@ Always explain your reasoning in a way that helps students understand the 'why' 
 
         for interval in intervals:
             milestone_day = int(timeline_days * interval)
+            if milestone_day == 0:
+                milestone_day = 1  # Avoid day 0
+
             topics_by_day = int(len(plan.topics) * interval)
+
+            # Get topics that should be covered by this milestone
+            topics_covered = [t["topic"] for t in plan.topics[:topics_by_day]]
 
             milestones.append({
                 "day": milestone_day,
-                "date": (datetime.now() + timedelta(days=milestone_day)).strftime("%Y-%m-%d"),
-                "target": f"Complete {topics_by_day} topics",
                 "percentage": int(interval * 100),
-                "description": f"{int(interval * 100)}% plan completion"
+                "description": f"{int(interval * 100)}% plan completion - {topics_by_day} topics completed",
+                "topics_covered": topics_covered
             })
 
         return milestones
