@@ -402,10 +402,6 @@ http://localhost:8000/redoc # ReDoc
 - Multi-language support
 - Spaced repetition algorithm integration
 
-## Contributing
-
-This is a research project for educational purposes. Feedback and suggestions are welcome.
-
 ## License
 
 MIT License
@@ -416,9 +412,8 @@ Built as a proof-of-concept for agentic AI in adaptive learning, addressing the 
 
 ## Authors
 
-Aditya - Initial implementation and research
+Aditya Sarade - Initial implementation and research
 
 ---
 
-**Status**: Fully Functional MVP (Day 3 Complete)
-**Last Updated**: 2025-01-15
+**Status**: Fully Functional MVP (A 3 Day (Night) Run)
