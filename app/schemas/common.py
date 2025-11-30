@@ -118,6 +118,7 @@ class MessageResponse(BaseModel):
     content: str
     timestamp: datetime
     message_type: Optional[str] = Field(None, description="Type of message (chat, quiz, explanation)")
+    message_metadata: Optional[Dict[str, Any]] = Field(None, description="Structured message data (quiz/plan/feedback)")
 
     model_config = ConfigDict(from_attributes=True)
 

@@ -283,9 +283,42 @@ async function loadSessionMessages(sessionId) {
         // Add welcome message
         addChatMessage('assistant', 'Previous conversation restored:');
 
-        // Load all messages
+        // Load all messages and parse agent responses
         messages.forEach(msg => {
-            addChatMessage(msg.role, msg.content);
+            if (msg.role === 'user') {
+                // User messages are always plain text
+                addChatMessage(msg.role, msg.content);
+            } else if (msg.role === 'assistant') {
+                // Use structured metadata if available, otherwise try parsing content
+                const agentData = msg.message_metadata || null;
+
+                if (agentData) {
+                    // We have structured data - use it
+                    if (agentData.quiz) {
+                        displayQuiz(agentData.quiz);
+                        addChatMessage('assistant', `[Quiz: ${agentData.quiz.topic}]`);
+                    }
+                    else if (agentData.plan) {
+                        displayStudyPlan(agentData.plan);
+                        addChatMessage('assistant', `[Study Plan: ${agentData.plan.timeline_days} days]`);
+                    }
+                    else if (agentData.feedback) {
+                        displayFeedback(agentData.feedback);
+                        addChatMessage('assistant', '[Progress Feedback Generated]');
+                    }
+                    else if (agentData.response) {
+                        addChatMessage('assistant', agentData.response);
+                    }
+                    else {
+                        // Unknown structure in metadata
+                        addChatMessage('assistant', msg.content);
+                    }
+                } else {
+                    // No metadata - display content as plain text
+                    // (older messages or simple text responses)
+                    addChatMessage('assistant', msg.content);
+                }
+            }
         });
 
     } catch (error) {
@@ -418,7 +451,16 @@ elements.chatInput.addEventListener('keypress', (e) => {
 
 // Display Quiz
 function displayQuiz(quiz) {
-    state.currentQuiz = quiz;
+    // Store quiz with ID
+    state.currentQuiz = {
+        quiz_id: quiz.quiz_id,
+        topic: quiz.topic,
+        difficulty: quiz.difficulty,
+        num_questions: quiz.num_questions,
+        questions: quiz.questions
+    };
+
+    console.log('Quiz stored:', state.currentQuiz); // Debug
 
     let html = `
         <div class="quiz-info">
@@ -455,7 +497,16 @@ function displayQuiz(quiz) {
 
 // Submit Quiz
 async function submitQuiz() {
-    if (!state.currentQuiz) return;
+    if (!state.currentQuiz) {
+        alert('No quiz loaded');
+        return;
+    }
+
+    if (!state.currentQuiz.quiz_id) {
+        alert('Quiz ID is missing. Please generate a new quiz.');
+        console.error('Missing quiz_id:', state.currentQuiz);
+        return;
+    }
 
     const answers = [];
     for (let i = 0; i < state.currentQuiz.num_questions; i++) {
@@ -466,6 +517,12 @@ async function submitQuiz() {
         }
         answers.push(parseInt(selected.value));
     }
+
+    console.log('Submitting quiz:', {
+        quiz_id: state.currentQuiz.quiz_id,
+        student_id: state.studentId,
+        answers: answers
+    });
 
     showLoading();
 
@@ -487,6 +544,7 @@ async function submitQuiz() {
                 <h3>Quiz Results</h3>
                 <p>Score: ${data.correct_answers}/${data.total_questions} (${data.accuracy.toFixed(1)}%)</p>
                 <p>Status: ${data.passed ? 'Passed ✓' : 'Failed ✗'}</p>
+                ${data.error ? `<p class="info-text">Note: ${data.error}</p>` : ''}
             </div>
         `;
 
@@ -495,6 +553,7 @@ async function submitQuiz() {
 
     } catch (error) {
         hideLoading();
+        console.error('Quiz submission error:', error);
         alert('Failed to submit quiz: ' + error.message);
     }
 }
