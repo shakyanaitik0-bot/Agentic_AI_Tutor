@@ -113,6 +113,9 @@ def seed_sample_data():
                     strong_areas=student_data["strong_areas"]
                 )
 
+                # Set password (required field now)
+                student.set_password("password123")  # Default password for sample data
+
                 # Set sample API keys (for development only)
                 student.set_openai_key("sk-sample_key_for_development_only")
 
