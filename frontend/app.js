@@ -553,7 +553,7 @@ async function submitQuiz() {
         hideLoading();
 
         const resultClass = data.passed ? 'passed' : 'failed';
-        const resultHTML = `
+        let resultHTML = `
             <div class="quiz-result ${resultClass}">
                 <h3>Quiz Results</h3>
                 <p>Score: ${data.correct_answers}/${data.total_questions} (${data.accuracy.toFixed(1)}%)</p>
@@ -561,6 +561,27 @@ async function submitQuiz() {
                 ${data.error ? `<p class="info-text">Note: ${data.error}</p>` : ''}
             </div>
         `;
+
+        // Add per-question breakdown if available
+        if (data.results && data.results.length > 0) {
+            resultHTML += '<div class="quiz-breakdown"><h4>Question Breakdown:</h4>';
+            data.results.forEach((result, idx) => {
+                const icon = result.is_correct ? '✓' : '✗';
+                const statusClass = result.is_correct ? 'correct' : 'incorrect';
+                const question = state.currentQuiz.questions[idx];
+
+                resultHTML += `
+                    <div class="question-result ${statusClass}">
+                        <p><strong>Question ${idx + 1}:</strong> ${icon} ${result.is_correct ? 'Correct' : 'Incorrect'}</p>
+                        <p class="question-text">${question.question_text}</p>
+                        <p><strong>Your answer:</strong> ${question.options[result.selected_answer]}</p>
+                        ${!result.is_correct ? `<p><strong>Correct answer:</strong> ${question.options[result.correct_answer]}</p>` : ''}
+                        <p class="explanation"><em>Explanation:</em> ${result.explanation}</p>
+                    </div>
+                `;
+            });
+            resultHTML += '</div>';
+        }
 
         elements.quizContainer.innerHTML += resultHTML;
         addChatMessage('assistant', `Quiz completed! Score: ${data.accuracy.toFixed(1)}%`);

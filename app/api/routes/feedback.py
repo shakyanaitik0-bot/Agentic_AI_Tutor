@@ -79,7 +79,8 @@ def get_progress_report(
         # Generate report
         result = feedback_agent.execute(
             f"Show progress report",
-            report_type=report_type.value
+            report_type=report_type.value,
+            format="json"  # Request JSON format for structured data
         )
 
         # Extract report data based on format
@@ -99,7 +100,7 @@ def get_progress_report(
                 report_summary=data.get("summary")
             )
 
-            logger.info(f"Generated report: {response.overall_stats.get('total_topics', 0)} topics analyzed")
+            logger.info(f"Generated report: {getattr(response.overall_stats, 'total_topics', 0)} topics analyzed")
 
             return response
         else:
