@@ -66,6 +66,57 @@ def register_student(
     return student
 
 
+@router.post("/login", response_model=StudentResponse)
+def login_or_register(
+    student_data: StudentCreate,
+    db: Session = Depends(get_db)
+):
+    """
+    Unified login/registration endpoint.
+
+    - If email exists: Return existing student (login)
+    - If email is new: Create new student (register)
+
+    Args:
+        student_data: Student data (email required, name/exam_type for new users)
+        db: Database session
+
+    Returns:
+        StudentResponse: Student profile (existing or newly created)
+    """
+    # Check if student exists
+    existing = db.query(Student).filter(Student.email == student_data.email).first()
+
+    if existing:
+        # Login - return existing student
+        logger.info(f"Student login: {existing.name} ({existing.id})")
+        return existing
+
+    # Register new student
+    student = Student(
+        name=student_data.name,
+        email=student_data.email,
+        exam_type=student_data.exam_type.value,
+        weak_areas=student_data.weak_areas or [],
+        strong_areas=student_data.strong_areas or [],
+        learning_preferences=student_data.learning_preferences or {}
+    )
+
+    # Set API keys if provided
+    if student_data.api_key_openai:
+        student.set_api_key("openai", student_data.api_key_openai)
+    if student_data.api_key_gemini:
+        student.set_api_key("gemini", student_data.api_key_gemini)
+
+    db.add(student)
+    db.commit()
+    db.refresh(student)
+
+    logger.info(f"Registered new student: {student.name} ({student.id})")
+
+    return student
+
+
 @router.get("/{student_id}", response_model=StudentResponse)
 def get_student(student: Student = Depends(get_student_by_id)):
     """

@@ -14,18 +14,29 @@
             <p class="subtitle">Adaptive Learning with Multi-Agent AI</p>
         </header>
 
-        <!-- Registration Section -->
+        <!-- Login/Registration Section -->
         <section id="registration-section" class="section">
-            <h2>Student Registration</h2>
-            <form id="registration-form">
+            <h2>Welcome to AI Tutor</h2>
+            <p class="subtitle-text">Sign in or create a new account to start learning</p>
+
+            <!-- Step 1: Email Input -->
+            <div id="email-step">
+                <div class="form-group">
+                    <label for="student-email">Email Address</label>
+                    <input type="email" id="student-email" required placeholder="your.email@example.com">
+                </div>
+                <button type="button" id="btn-continue" class="btn btn-primary">Continue</button>
+            </div>
+
+            <!-- Step 2: New User Details (hidden initially) -->
+            <form id="registration-form" class="hidden">
+                <p class="info-text">
+                    Welcome! Let's set up your profile.
+                </p>
+
                 <div class="form-group">
                     <label for="student-name">Full Name</label>
                     <input type="text" id="student-name" required placeholder="Enter your name">
-                </div>
-
-                <div class="form-group">
-                    <label for="student-email">Email</label>
-                    <input type="email" id="student-email" required placeholder="your.email@example.com">
                 </div>
 
                 <div class="form-group">
@@ -39,10 +50,11 @@
                 </div>
 
                 <p class="info-text">
-                    Note: The system will automatically identify your weak and strong areas based on your quiz performance and learning patterns.
+                    The system will automatically identify your weak and strong areas based on your quiz performance.
                 </p>
 
-                <button type="submit" class="btn btn-primary">Register & Start Learning</button>
+                <button type="submit" class="btn btn-primary">Start Learning</button>
+                <button type="button" id="btn-back-to-email" class="btn btn-secondary">Back</button>
             </form>
         </section>
 

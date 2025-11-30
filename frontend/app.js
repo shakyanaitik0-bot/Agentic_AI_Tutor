@@ -124,7 +124,60 @@ async function apiRequest(endpoint, options = {}) {
     }
 }
 
-// Registration (removed weak/strong areas - system discovers these automatically)
+// Step 1: Email Continue Button
+document.getElementById('btn-continue').addEventListener('click', async () => {
+    const email = document.getElementById('student-email').value;
+
+    if (!email || !email.includes('@')) {
+        alert('Please enter a valid email address');
+        return;
+    }
+
+    showLoading();
+
+    try {
+        // Try to login with just email (will work if user exists)
+        const data = await apiRequest('/students/login', {
+            method: 'POST',
+            body: JSON.stringify({
+                email: email,
+                name: 'Temp', // Required by schema but ignored if user exists
+                exam_type: 'JEE', // Required by schema but ignored if user exists
+                weak_areas: [],
+                strong_areas: [],
+                learning_preferences: {}
+            })
+        });
+
+        // User exists - login successful
+        state.studentId = data.id;
+        state.studentData = data;
+
+        // Update dashboard
+        elements.displayName.textContent = data.name;
+        elements.displayExam.textContent = data.exam_type;
+
+        // Show dashboard
+        elements.registrationSection.classList.add('hidden');
+        elements.dashboardSection.classList.remove('hidden');
+
+        hideLoading();
+    } catch (error) {
+        hideLoading();
+
+        // New user - show registration form
+        document.getElementById('email-step').classList.add('hidden');
+        elements.registrationForm.classList.remove('hidden');
+    }
+});
+
+// Step 2: Back to Email
+document.getElementById('btn-back-to-email').addEventListener('click', () => {
+    document.getElementById('email-step').classList.remove('hidden');
+    elements.registrationForm.classList.add('hidden');
+});
+
+// Step 3: Complete Registration (removed weak/strong areas - system discovers these automatically)
 elements.registrationForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
@@ -143,7 +196,7 @@ elements.registrationForm.addEventListener('submit', async (e) => {
             }
         };
 
-        const data = await apiRequest('/students/register', {
+        const data = await apiRequest('/students/login', {
             method: 'POST',
             body: JSON.stringify(formData)
         });

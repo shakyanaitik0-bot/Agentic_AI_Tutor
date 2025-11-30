@@ -36,6 +36,13 @@ header .subtitle {
     opacity: 0.9;
 }
 
+.subtitle-text {
+    text-align: center;
+    color: #718096;
+    margin-bottom: 30px;
+    font-size: 1.1rem;
+}
+
 /* Section Styles */
 .section {
     background: white;
