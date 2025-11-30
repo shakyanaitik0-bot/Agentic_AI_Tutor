@@ -170,6 +170,18 @@ class Progress(Base):
             question_type: Type of question (multiple_choice, descriptive, etc.)
             mistake_pattern: Common mistake pattern if incorrect
         """
+        # Ensure fields are initialized (handle None values)
+        if self.total_attempts is None:
+            self.total_attempts = 0
+        if self.total_time_spent_minutes is None:
+            self.total_time_spent_minutes = 0.0
+        if self.correct_answers is None:
+            self.correct_answers = 0
+        if self.consecutive_correct is None:
+            self.consecutive_correct = 0
+        if self.max_streak is None:
+            self.max_streak = 0
+
         # Update basic metrics
         self.total_attempts += 1
         self.total_time_spent_minutes += time_spent_minutes

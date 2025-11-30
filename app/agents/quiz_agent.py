@@ -234,7 +234,26 @@ Always create questions that:
         Returns:
             str: Extracted topic
         """
-        # Simple keyword extraction (can be improved with NLP)
+        import re
+
+        # Try to extract from patterns like "quiz on X", "quiz about X", "X quiz", etc.
+        patterns = [
+            r"quiz (?:on|about|for|in) ([^.,!?]+)",  # "quiz on AI Agents"
+            r"(?:create|generate|make|give me) (?:a |an )?(?:quiz )?(?:on|about|for|in) ([^.,!?]+)",  # "create a quiz on X"
+            r"([^.,!?]+) quiz",  # "AI Agents quiz"
+        ]
+
+        for pattern in patterns:
+            match = re.search(pattern, user_input.lower())
+            if match:
+                topic = match.group(1).strip()
+                # Clean up common words
+                topic = re.sub(r'^(?:a|an|the|some)\s+', '', topic)
+                topic = topic.title()
+                logger.info(f"Extracted topic from user input: '{topic}'")
+                return topic
+
+        # Fallback: check for common topics
         common_topics = [
             "algebra", "calculus", "geometry", "trigonometry", "probability",
             "physics", "mechanics", "thermodynamics", "electromagnetism",
@@ -247,6 +266,7 @@ Always create questions that:
                 return topic.capitalize()
 
         # Default fallback
+        logger.warning(f"Could not extract topic from '{user_input}', using 'General'")
         return "General"
 
     def _select_difficulty(self, topic: str) -> str:

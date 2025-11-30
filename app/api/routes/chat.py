@@ -116,6 +116,10 @@ def chat(
 
         agent_response = orchestrator.execute(request.message, **kwargs)
 
+        # Commit session state changes (agents may have updated agent_state)
+        db.commit()
+        db.refresh(session)
+
         # Save assistant response
         assistant_message = Message(
             session_id=session.id,

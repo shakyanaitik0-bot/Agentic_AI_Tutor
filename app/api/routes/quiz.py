@@ -156,8 +156,13 @@ def submit_quiz(
         )
 
         # Retrieve quiz data from session state
+        # Note: AgentState.to_dict() wraps data in a "data" key
         session_state = active_session.agent_state or {}
-        stored_quiz = session_state.get("last_quiz")
+        state_data = session_state.get("data", {})
+        stored_quiz = state_data.get("last_quiz")
+
+        logger.info(f"Session state keys: {list(session_state.keys())}")
+        logger.info(f"State data keys: {list(state_data.keys())}")
 
         if not stored_quiz or stored_quiz.get("quiz_id") != submission.quiz_id:
             logger.warning(f"Quiz {submission.quiz_id} not found in session state")

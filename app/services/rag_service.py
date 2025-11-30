@@ -277,15 +277,16 @@ class RAGService:
         Semantic search for relevant documents.
 
         Args:
-            query: Search query
-            top_k: Number of results to return (defaults to config)
-            metadata_filter: Optional metadata filters
-            namespace: Optional Pinecone namespace
-            include_metadata: Whether to include metadata in results
+            query: Search query text
+            top_k: Number of results to return
+            metadata_filter: Pinecone metadata filter
+            namespace: Optional namespace
+            include_metadata: Include metadata in results
 
         Returns:
-            List[Dict]: Search results with scores and content
+            List of matching documents with scores and metadata
         """
+        logger.info(f"RAG Search - Query: '{query[:100]}...', Filter: {metadata_filter}")
         if not query or not query.strip():
             logger.warning("Empty query provided for search")
             return []
@@ -309,11 +310,25 @@ class RAGService:
                 include_metadata=include_metadata
             )
 
+            logger.info(f"Pinecone returned {len(results.matches)} matches")
+            if len(results.matches) > 0:
+                logger.debug(f"First match metadata: {results.matches[0].metadata if hasattr(results.matches[0], 'metadata') else 'No metadata'}")
+                logger.debug(f"First match score: {results.matches[0].score}")
+
             # Format results
             formatted_results = []
+            filtered_count = 0
             for match in results.matches:
+                logger.debug(f"Match: score={match.score:.3f}, threshold={self.similarity_threshold}, metadata={match.metadata.get('filename', 'N/A')}")
+
+                # For student-specific documents, use lower threshold or skip threshold
+                is_student_doc = metadata_filter and 'student_id' in metadata_filter
+                effective_threshold = 0.3 if is_student_doc else self.similarity_threshold
+
                 # Filter by similarity threshold
-                if match.score < self.similarity_threshold:
+                if match.score < effective_threshold:
+                    filtered_count += 1
+                    logger.debug(f"Filtered out: score {match.score:.3f} < threshold {effective_threshold}")
                     continue
 
                 result = {
@@ -323,6 +338,9 @@ class RAGService:
                     "metadata": match.metadata if include_metadata else {}
                 }
                 formatted_results.append(result)
+
+            if filtered_count > 0:
+                logger.info(f"Filtered {filtered_count} matches below threshold")
 
             logger.debug(
                 f"Search query: '{query[:50]}...' -> {len(formatted_results)} results "

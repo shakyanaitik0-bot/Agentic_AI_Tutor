@@ -287,8 +287,14 @@ this decision was made and HOW it will help their learning:"""
 
     def update_session_state(self):
         """Update the session with current agent state"""
+        from sqlalchemy.orm.attributes import flag_modified
+
         self.session.agent_state = self.state.to_dict()
         self.session.last_interaction = datetime.now()
+
+        # Mark JSON column as modified so SQLAlchemy detects the change
+        flag_modified(self.session, "agent_state")
+        logger.info(f"Session state updated and marked as modified: {list(self.state.to_dict().keys())}")
 
     def get_student_context(self) -> str:
         """
