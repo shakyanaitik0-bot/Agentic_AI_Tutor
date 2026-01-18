@@ -4,6 +4,7 @@ Document upload and management API endpoints.
 Allows students to upload their own study materials (PDF, TXT, DOCX)
 which are processed and added to their personal vector store.
 """
+
 import logging
 import os
 import tempfile
@@ -11,7 +12,7 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
 from sqlalchemy.orm import Session as DBSessionType
 
-from app.api.dependencies import get_db, get_student_by_id
+from app.api.dependencies import get_db
 from app.models.student import Student
 from app.services.document_processor import DocumentProcessor
 from app.services.rag_service import get_rag_service
@@ -23,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 class DocumentUploadResponse(BaseModel):
     """Response schema for document upload"""
+
     success: bool
     filename: str
     num_chunks: int
@@ -31,12 +33,13 @@ class DocumentUploadResponse(BaseModel):
 
 class DocumentListResponse(BaseModel):
     """Response schema for listing documents"""
+
     student_id: str
     documents: List[dict]
     total_chunks: int
 
 
-ALLOWED_EXTENSIONS = {'.pdf', '.txt', '.docx', '.doc', '.md'}
+ALLOWED_EXTENSIONS = {".pdf", ".txt", ".docx", ".doc", ".md"}
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 
 
@@ -45,7 +48,7 @@ async def upload_document(
     file: UploadFile = File(...),
     student_id: str = Form(...),
     subject: str = Form(None),
-    db: DBSessionType = Depends(get_db)
+    db: DBSessionType = Depends(get_db),
 ):
     """
     Upload a study material document for a student.
@@ -69,8 +72,7 @@ async def upload_document(
     student = db.query(Student).filter(Student.id == student_id).first()
     if not student:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Student {student_id} not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Student {student_id} not found"
         )
 
     # Validate file extension
@@ -78,7 +80,7 @@ async def upload_document(
     if file_ext not in ALLOWED_EXTENSIONS:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"File type {file_ext} not supported. Allowed: {', '.join(ALLOWED_EXTENSIONS)}"
+            detail=f"File type {file_ext} not supported. Allowed: {', '.join(ALLOWED_EXTENSIONS)}",
         )
 
     # Read file content
@@ -89,10 +91,12 @@ async def upload_document(
     if file_size > MAX_FILE_SIZE:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"File too large ({file_size / 1024 / 1024:.1f}MB). Max size: {MAX_FILE_SIZE / 1024 / 1024}MB"
+            detail=f"File too large ({file_size / 1024 / 1024:.1f}MB). Max size: {MAX_FILE_SIZE / 1024 / 1024}MB",
         )
 
-    logger.info(f"Processing document upload: {file.filename} ({file_size} bytes) for student {student.name}")
+    logger.info(
+        f"Processing document upload: {file.filename} ({file_size} bytes) for student {student.name}"
+    )
 
     try:
         # Save to temporary file
@@ -106,7 +110,7 @@ async def upload_document(
             file_path=tmp_path,
             filename=file.filename,
             student_id=student_id,
-            subject=subject or "General"
+            subject=subject or "General",
         )
 
         # Clean up temp file
@@ -115,11 +119,12 @@ async def upload_document(
         if not chunks:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Could not extract text from document"
+                detail="Could not extract text from document",
             )
 
         # Add to vector store
         from datetime import datetime
+
         rag_service = get_rag_service()
         rag_service.add_documents(
             chunks=chunks,
@@ -128,38 +133,39 @@ async def upload_document(
                 "filename": file.filename,
                 "subject": subject or "General",
                 "exam_type": student.exam_type,
-                "uploaded_at": datetime.utcnow().isoformat()
-            }
+                "uploaded_at": datetime.utcnow().isoformat(),
+            },
         )
 
-        logger.info(f"Added document to vector store with student_id={student_id}, filename={file.filename}")
+        logger.info(
+            f"Added document to vector store with student_id={student_id}, filename={file.filename}"
+        )
 
-        logger.info(f"Successfully processed {file.filename}: {len(chunks)} chunks added to vector store")
+        logger.info(
+            f"Successfully processed {file.filename}: {len(chunks)} chunks added to vector store"
+        )
 
         return DocumentUploadResponse(
             success=True,
             filename=file.filename,
             num_chunks=len(chunks),
-            message=f"Document processed successfully. {len(chunks)} text chunks added to your knowledge base."
+            message=f"Document processed successfully. {len(chunks)} text chunks added to your knowledge base.",
         )
 
     except Exception as e:
         logger.error(f"Error processing document {file.filename}: {e}", exc_info=True)
         # Clean up temp file if it exists
-        if 'tmp_path' in locals() and os.path.exists(tmp_path):
+        if "tmp_path" in locals() and os.path.exists(tmp_path):
             os.unlink(tmp_path)
 
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error processing document: {str(e)}"
+            detail=f"Error processing document: {str(e)}",
         )
 
 
 @router.get("/list/{student_id}", response_model=DocumentListResponse)
-def list_student_documents(
-    student_id: str,
-    db: DBSessionType = Depends(get_db)
-):
+def list_student_documents(student_id: str, db: DBSessionType = Depends(get_db)):
     """
     List all documents uploaded by a student.
 
@@ -174,8 +180,7 @@ def list_student_documents(
     student = db.query(Student).filter(Student.id == student_id).first()
     if not student:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Student {student_id} not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Student {student_id} not found"
         )
 
     try:
@@ -186,12 +191,12 @@ def list_student_documents(
         return DocumentListResponse(
             student_id=student_id,
             documents=documents,
-            total_chunks=sum(doc.get("num_chunks", 0) for doc in documents)
+            total_chunks=sum(doc.get("num_chunks", 0) for doc in documents),
         )
 
     except Exception as e:
         logger.error(f"Error listing documents for student {student_id}: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error retrieving documents: {str(e)}"
+            detail=f"Error retrieving documents: {str(e)}",
         )

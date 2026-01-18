@@ -1,14 +1,16 @@
 """
 Pydantic schemas for Feedback/Progress-related API endpoints.
 """
-from pydantic import BaseModel, Field, validator, ConfigDict
-from typing import List, Optional, Dict, Any
+
+from pydantic import BaseModel, Field, ConfigDict
+from typing import List, Optional
 from datetime import datetime
 from enum import Enum
 
 
 class ReportType(str, Enum):
     """Types of feedback reports"""
+
     STUDENT = "student"
     TEACHER = "teacher"
     DATA = "data"
@@ -16,6 +18,7 @@ class ReportType(str, Enum):
 
 class FeedbackRequest(BaseModel):
     """Request schema for getting feedback/progress report"""
+
     student_id: str = Field(..., description="Student ID")
     report_type: ReportType = Field(ReportType.STUDENT, description="Type of report to generate")
     format: str = Field("text", description="Output format (text/json)")
@@ -27,7 +30,7 @@ class FeedbackRequest(BaseModel):
                 "student_id": "123e4567-e89b-12d3-a456-426614174000",
                 "report_type": "student",
                 "format": "json",
-                "include_recommendations": True
+                "include_recommendations": True,
             }
         }
     )
@@ -35,6 +38,7 @@ class FeedbackRequest(BaseModel):
 
 class OverallStats(BaseModel):
     """Overall performance statistics"""
+
     total_topics: int = Field(..., ge=0, description="Total topics studied")
     total_attempts: int = Field(..., ge=0, description="Total quiz attempts")
     total_correct: int = Field(..., ge=0, description="Total correct answers")
@@ -56,7 +60,7 @@ class OverallStats(BaseModel):
                 "weak_topics_count": 3,
                 "strong_topics_count": 4,
                 "mastery_topics_count": 2,
-                "recently_practiced_count": 6
+                "recently_practiced_count": 6,
             }
         }
     )
@@ -64,6 +68,7 @@ class OverallStats(BaseModel):
 
 class TopicPerformance(BaseModel):
     """Performance data for a single topic"""
+
     topic: str = Field(..., description="Topic name")
     difficulty: str = Field(..., description="Current difficulty level")
     accuracy: float = Field(..., ge=0, le=100, description="Accuracy percentage")
@@ -97,7 +102,7 @@ class TopicPerformance(BaseModel):
                 "needs_review": False,
                 "trend": "improving",
                 "trend_value": 12.5,
-                "common_mistakes": ["Sign errors in chain rule"]
+                "common_mistakes": ["Sign errors in chain rule"],
             }
         }
     )
@@ -105,13 +110,16 @@ class TopicPerformance(BaseModel):
 
 class ProgressReportResponse(BaseModel):
     """Response schema for progress/feedback report"""
+
     student_id: str
     generated_at: datetime = Field(default_factory=datetime.utcnow)
     overall_stats: OverallStats
     weak_topics: List[TopicPerformance] = Field(..., description="Topics needing attention")
     strong_topics: List[TopicPerformance] = Field(..., description="Strong performance topics")
     improving_topics: List[TopicPerformance] = Field(..., description="Topics showing improvement")
-    declining_topics: List[TopicPerformance] = Field(..., description="Topics with declining performance")
+    declining_topics: List[TopicPerformance] = Field(
+        ..., description="Topics with declining performance"
+    )
     recommendations: List[str] = Field(..., description="Personalized recommendations")
     needs_replanning: bool = Field(..., description="Whether new study plan is recommended")
     report_summary: Optional[str] = Field(None, description="Human-readable summary")
@@ -128,10 +136,10 @@ class ProgressReportResponse(BaseModel):
                 "declining_topics": [],
                 "recommendations": [
                     "Focus on Calculus - your weakest area",
-                    "Practice Organic Chemistry regularly to prevent decline"
+                    "Practice Organic Chemistry regularly to prevent decline",
                 ],
                 "needs_replanning": True,
-                "report_summary": "Overall performance is 70.1%. Focus on 3 weak areas..."
+                "report_summary": "Overall performance is 70.1%. Focus on 3 weak areas...",
             }
         }
     )
@@ -139,6 +147,7 @@ class ProgressReportResponse(BaseModel):
 
 class TopicProgressUpdate(BaseModel):
     """Request schema for manually updating topic progress"""
+
     student_id: str = Field(..., description="Student ID")
     topic: str = Field(..., description="Topic name")
     difficulty: str = Field(..., description="Difficulty level")
@@ -154,7 +163,7 @@ class TopicProgressUpdate(BaseModel):
                 "difficulty": "medium",
                 "is_correct": True,
                 "time_spent_minutes": 5.5,
-                "mistake_pattern": None
+                "mistake_pattern": None,
             }
         }
     )
@@ -162,6 +171,7 @@ class TopicProgressUpdate(BaseModel):
 
 class ProgressStatsResponse(BaseModel):
     """Quick progress statistics response"""
+
     student_id: str
     overall_accuracy: float = Field(..., ge=0, le=100)
     total_attempts: int = Field(..., ge=0)
@@ -177,7 +187,7 @@ class ProgressStatsResponse(BaseModel):
                 "total_attempts": 87,
                 "weak_count": 3,
                 "strong_count": 4,
-                "last_activity": "2024-01-14T15:30:00Z"
+                "last_activity": "2024-01-14T15:30:00Z",
             }
         }
     )

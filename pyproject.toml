@@ -1,7 +1,7 @@
 [project]
 name = "agentic-tutor"
-version = "0.1.0"
-description = "Agentic AI Tutor for Adaptive Learning in EdTech"
+version = "0.2.0"
+description = "Agentic AI Tutor for Adaptive Learning in EdTech - Production-Ready Multi-Agent System"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
@@ -19,25 +19,36 @@ dependencies = [
     "openai>=1.10.0",
     "google-generativeai>=0.3.2",
     "sentence-transformers>=2.2.2",
-    "torch>=2.0.0", # Required for sentence-transformers
+    "torch>=2.0.0",
     # Vector Database
     "pinecone>=3.0.0",
+    # Hybrid RAG - BM25 & Knowledge Graph
+    "rank-bm25>=0.2.2",
+    "networkx>=3.2.1",
+    # Cross-encoder for re-ranking (free, local)
+    "transformers>=4.36.0",
     # Document Processing
     "pypdf>=4.0.0",
     "python-multipart>=0.0.6",
+    "pypdf2>=3.0.1",
+    "python-docx>=1.2.0",
     # Utilities
     "aiofiles>=23.2.1",
     "tiktoken>=0.5.2",
     "requests>=2.31.0",
-    # Security & Encryption
+    # Security & Auth
     "cryptography>=41.0.0",
+    "bcrypt>=5.0.0",
+    "python-jose[cryptography]>=3.3.0",
+    # Rate Limiting & Monitoring
+    "slowapi>=0.1.9",
+    "prometheus-client>=0.19.0",
     # Configuration
     "pyyaml>=6.0.1",
     # Email Support
     "pydantic[email]",
-    "bcrypt>=5.0.0",
-    "pypdf2>=3.0.1",
-    "python-docx>=1.2.0",
+    # Caching (Redis-compatible, but works in-memory too)
+    "cachetools>=5.3.2",
 ]
 
 [project.optional-dependencies]

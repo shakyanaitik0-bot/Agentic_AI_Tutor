@@ -91,6 +91,7 @@
             <div id="tab-navigation" class="tab-nav hidden">
                 <button class="tab-btn active" data-tab="chat">💬 Chat</button>
                 <button class="tab-btn" data-tab="quiz">📝 Quiz</button>
+                <button class="tab-btn" data-tab="flashcards">🎴 Flashcards</button>
                 <button class="tab-btn" data-tab="progress">📊 Progress</button>
                 <button class="tab-btn" data-tab="plan">📅 Study Plan</button>
                 <button class="tab-btn" data-tab="documents">📚 My Documents</button>
@@ -124,6 +125,76 @@
                     <div id="quiz-container">
                         <div class="empty-state">
                             <p>No active quiz. Request a quiz through chat or use "Generate Study Plan" to get started!</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Flashcards Tab -->
+                <div id="tab-flashcards" class="tab-content">
+                    <div class="section">
+                        <h3>Generate Flashcards</h3>
+                        <p class="info-text">Create AI-generated flashcards from your documents or any topic. Uses spaced repetition for optimal learning!</p>
+
+                        <form id="flashcard-generate-form">
+                            <div class="form-group">
+                                <label for="flashcard-topic">Topic</label>
+                                <input type="text" id="flashcard-topic" required placeholder="e.g., Calculus Derivatives, Organic Chemistry, World War II">
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="flashcard-count">Number of Cards</label>
+                                    <select id="flashcard-count">
+                                        <option value="5">5 cards</option>
+                                        <option value="10" selected>10 cards</option>
+                                        <option value="15">15 cards</option>
+                                        <option value="20">20 cards</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="flashcard-difficulty">Difficulty</label>
+                                    <select id="flashcard-difficulty">
+                                        <option value="easy">Easy</option>
+                                        <option value="medium" selected>Medium</option>
+                                        <option value="hard">Hard</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="flashcard-use-docs" checked>
+                                    Use my uploaded documents for context
+                                </label>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary">🎴 Generate Flashcards</button>
+                        </form>
+                    </div>
+
+                    <div class="section">
+                        <h3>My Flashcard Decks</h3>
+                        <div id="flashcard-decks">
+                            <div class="empty-state">
+                                <p>No flashcard decks yet. Generate your first deck above!</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="flashcard-study-area" class="section hidden">
+                        <h3>Study Session</h3>
+                        <div id="flashcard-card-display">
+                            <!-- Active flashcard will be displayed here -->
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <h3>Flashcard Statistics</h3>
+                        <div id="flashcard-stats">
+                            <div class="empty-state">
+                                <p>Start studying to see your statistics!</p>
+                            </div>
                         </div>
                     </div>
                 </div>

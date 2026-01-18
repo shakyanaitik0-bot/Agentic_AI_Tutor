@@ -3,13 +3,14 @@ Session management API endpoints.
 
 Handles learning session creation, retrieval, and termination.
 """
+
 import logging
 from typing import List
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session as DBSessionType
 
-from app.api.dependencies import get_db, get_student_by_id, get_session_by_id
+from app.api.dependencies import get_db, get_session_by_id
 from app.models.student import Student
 from app.models.session import Session as DBSession, Message
 from app.schemas.common import SessionCreate, SessionResponse, MessageResponse
@@ -19,10 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 @router.post("/start", response_model=SessionResponse, status_code=status.HTTP_201_CREATED)
-def start_session(
-    session_data: SessionCreate,
-    db: DBSessionType = Depends(get_db)
-):
+def start_session(session_data: SessionCreate, db: DBSessionType = Depends(get_db)):
     """
     Start a new learning session for a student.
 
@@ -41,14 +39,12 @@ def start_session(
     if not student:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Student {session_data.student_id} not found"
+            detail=f"Student {session_data.student_id} not found",
         )
 
     # Create new session
     new_session = DBSession(
-        student_id=session_data.student_id,
-        is_active=True,
-        session_type=session_data.session_type
+        student_id=session_data.student_id, is_active=True, session_type=session_data.session_type
     )
 
     db.add(new_session)
@@ -77,8 +73,7 @@ def get_session(session: DBSession = Depends(get_session_by_id)):
 
 @router.post("/{session_id}/end", response_model=SessionResponse)
 def end_session(
-    session: DBSession = Depends(get_session_by_id),
-    db: DBSessionType = Depends(get_db)
+    session: DBSession = Depends(get_session_by_id), db: DBSessionType = Depends(get_db)
 ):
     """
     End an active session.
@@ -95,8 +90,7 @@ def end_session(
     """
     if not session.is_active:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Session {session.id} is already ended"
+            status_code=status.HTTP_400_BAD_REQUEST, detail=f"Session {session.id} is already ended"
         )
 
     # End the session
@@ -113,8 +107,7 @@ def end_session(
 
 @router.get("", response_model=List[SessionResponse])
 def get_student_sessions(
-    student_id: str = Query(..., description="Student ID"),
-    db: DBSessionType = Depends(get_db)
+    student_id: str = Query(..., description="Student ID"), db: DBSessionType = Depends(get_db)
 ):
     """
     Get all sessions for a student (ordered by most recent first).
@@ -126,19 +119,19 @@ def get_student_sessions(
     Returns:
         List[SessionResponse]: List of sessions
     """
-    sessions = db.query(DBSession).filter(
-        DBSession.student_id == student_id
-    ).order_by(DBSession.started_at.desc()).all()
+    sessions = (
+        db.query(DBSession)
+        .filter(DBSession.student_id == student_id)
+        .order_by(DBSession.started_at.desc())
+        .all()
+    )
 
     logger.debug(f"Retrieved {len(sessions)} sessions for student {student_id}")
     return sessions
 
 
 @router.get("/{session_id}/messages", response_model=List[MessageResponse])
-def get_session_messages(
-    session_id: str,
-    db: DBSessionType = Depends(get_db)
-):
+def get_session_messages(session_id: str, db: DBSessionType = Depends(get_db)):
     """
     Get all messages from a session.
 
@@ -153,13 +146,15 @@ def get_session_messages(
     session = db.query(DBSession).filter(DBSession.id == session_id).first()
     if not session:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Session {session_id} not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Session {session_id} not found"
         )
 
-    messages = db.query(Message).filter(
-        Message.session_id == session_id
-    ).order_by(Message.timestamp.asc()).all()
+    messages = (
+        db.query(Message)
+        .filter(Message.session_id == session_id)
+        .order_by(Message.timestamp.asc())
+        .all()
+    )
 
     logger.debug(f"Retrieved {len(messages)} messages for session {session_id}")
     return messages

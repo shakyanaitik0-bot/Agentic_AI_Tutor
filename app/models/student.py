@@ -2,6 +2,7 @@
 Student model for Agentic AI Tutor.
 Handles student profiles with encrypted API keys and competitive exam preparation data.
 """
+
 import uuid
 from datetime import datetime
 from typing import Optional, Dict, List
@@ -9,13 +10,13 @@ from sqlalchemy import Column, String, DateTime, Text, JSON, Boolean
 from sqlalchemy.orm import relationship
 from cryptography.fernet import Fernet
 import os
-import json
 import logging
 import bcrypt
 
 from app.core.database import Base
 
 logger = logging.getLogger(__name__)
+
 
 class Student(Base):
     """
@@ -24,6 +25,7 @@ class Student(Base):
     Supports competitive exam preparation (JEE, SAT, GRE) with encrypted API key storage
     and comprehensive learning profile tracking.
     """
+
     __tablename__ = "students"
 
     # Primary identification
@@ -51,7 +53,13 @@ class Student(Base):
 
     # Relationships with other models
     sessions = relationship("Session", back_populates="student", cascade="all, delete-orphan")
-    progress_records = relationship("Progress", back_populates="student", cascade="all, delete-orphan")
+    progress_records = relationship(
+        "Progress", back_populates="student", cascade="all, delete-orphan"
+    )
+    quizzes = relationship("Quiz", back_populates="student", lazy="dynamic")
+    flashcard_decks = relationship(
+        "FlashcardDeck", back_populates="student", cascade="all, delete-orphan"
+    )
 
     def __init__(self, **kwargs):
         """Initialize student with default preferences"""
@@ -65,11 +73,7 @@ class Student(Base):
                 "explanation_style": "detailed",  # brief, detailed, step_by_step
                 "practice_frequency": "daily",  # daily, weekly, intensive
                 "topics_to_focus": [],
-                "study_schedule": {
-                    "morning": False,
-                    "afternoon": True,
-                    "evening": True
-                }
+                "study_schedule": {"morning": False, "afternoon": True, "evening": True},
             }
 
         # Initialize empty weak/strong areas if not provided
@@ -86,7 +90,7 @@ class Student(Base):
         """
         # Use student ID as part of key generation for per-user encryption
         key_material = f"{self.id}_{os.getenv('SECRET_KEY', 'default-key-for-dev')}"
-        return Fernet.generate_key() if not hasattr(self, '_key') else self._key
+        return Fernet.generate_key() if not hasattr(self, "_key") else self._key
 
     def set_openai_key(self, api_key: str) -> bool:
         """
@@ -104,7 +108,7 @@ class Student(Base):
                 return False
 
             # Basic validation - OpenAI keys start with 'sk-'
-            if not api_key.startswith('sk-'):
+            if not api_key.startswith("sk-"):
                 logger.warning(f"Invalid OpenAI API key format for student {self.id}")
                 return False
 
@@ -239,7 +243,7 @@ class Student(Base):
             "has_gemini_key": bool(self.api_key_gemini_encrypted),
             "is_active": self.is_active,
             "days_since_created": (datetime.utcnow() - self.created_at).days,
-            "last_active": self.last_active.isoformat() if self.last_active else None
+            "last_active": self.last_active.isoformat() if self.last_active else None,
         }
 
     def update_last_active(self) -> None:
@@ -253,9 +257,9 @@ class Student(Base):
         Args:
             password: Plain text password
         """
-        password_bytes = password.encode('utf-8')
+        password_bytes = password.encode("utf-8")
         salt = bcrypt.gensalt()
-        self.password_hash = bcrypt.hashpw(password_bytes, salt).decode('utf-8')
+        self.password_hash = bcrypt.hashpw(password_bytes, salt).decode("utf-8")
         logger.debug(f"Password set for student {self.email}")
 
     def verify_password(self, password: str) -> bool:
@@ -269,8 +273,8 @@ class Student(Base):
             bool: True if password matches, False otherwise
         """
         try:
-            password_bytes = password.encode('utf-8')
-            hash_bytes = self.password_hash.encode('utf-8')
+            password_bytes = password.encode("utf-8")
+            hash_bytes = self.password_hash.encode("utf-8")
             return bcrypt.checkpw(password_bytes, hash_bytes)
         except Exception as e:
             logger.error(f"Password verification error for {self.email}: {e}")

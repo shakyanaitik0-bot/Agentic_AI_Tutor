@@ -2,14 +2,16 @@
 LLM Service for Agentic AI Tutor.
 Unified interface for OpenAI and Gemini APIs with automatic retry and error handling.
 """
+
 import time
 import logging
 from typing import List, Dict, Optional, Any, Literal
-from openai import OpenAI, OpenAIError
+from openai import OpenAI
 import google.generativeai as genai
 from google.generativeai.types import GenerationConfig
 import tiktoken
 from dotenv import load_dotenv
+
 load_dotenv()
 
 from app.core.config import settings
@@ -36,7 +38,7 @@ class LLMService:
         self,
         provider: Optional[LLMProvider] = None,
         api_key: Optional[str] = None,
-        model: Optional[str] = None
+        model: Optional[str] = None,
     ):
         """
         Initialize LLM service with specified provider.
@@ -87,17 +89,14 @@ class LLMService:
         """
         defaults = {
             "openai": "gpt-4o-mini",  # Fast and cost-effective
-            "gemini": "gemini-2.5-flash-lite"  # Fast Gemini model
+            "gemini": "gemini-2.5-flash-lite",  # Fast Gemini model
         }
         return defaults.get(self.provider, "gpt-4o-mini")
 
     def _init_client(self) -> None:
         """Initialize the provider-specific API client"""
         if self.provider == "openai":
-            self.client = OpenAI(
-                api_key=self.api_key,
-                timeout=settings.llm_timeout
-            )
+            self.client = OpenAI(api_key=self.api_key, timeout=settings.llm_timeout)
             logger.debug("OpenAI client initialized")
 
         elif self.provider == "gemini":
@@ -111,7 +110,7 @@ class LLMService:
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
         system_prompt: Optional[str] = None,
-        retry_count: int = 3
+        retry_count: int = 3,
     ) -> str:
         """
         Generate chat completion using the configured LLM provider.
@@ -154,7 +153,7 @@ class LLMService:
 
                 if attempt < retry_count - 1:
                     # Exponential backoff: 1s, 2s, 4s
-                    sleep_time = 2 ** attempt
+                    sleep_time = 2**attempt
                     logger.info(f"Retrying in {sleep_time} seconds...")
                     time.sleep(sleep_time)
                 else:
@@ -162,10 +161,7 @@ class LLMService:
                     raise
 
     def _openai_completion(
-        self,
-        messages: List[Dict[str, str]],
-        temperature: float,
-        max_tokens: int
+        self, messages: List[Dict[str, str]], temperature: float, max_tokens: int
     ) -> str:
         """
         Generate completion using OpenAI API.
@@ -179,16 +175,13 @@ class LLMService:
             str: Generated response
         """
         response = self.client.chat.completions.create(
-            model=self.model,
-            messages=messages,
-            temperature=temperature,
-            max_tokens=max_tokens
+            model=self.model, messages=messages, temperature=temperature, max_tokens=max_tokens
         )
 
         content = response.choices[0].message.content
 
         # Log token usage
-        if hasattr(response, 'usage'):
+        if hasattr(response, "usage"):
             logger.debug(
                 f"OpenAI tokens - prompt: {response.usage.prompt_tokens}, "
                 f"completion: {response.usage.completion_tokens}, "
@@ -198,10 +191,7 @@ class LLMService:
         return content
 
     def _gemini_completion(
-        self,
-        messages: List[Dict[str, str]],
-        temperature: float,
-        max_tokens: int
+        self, messages: List[Dict[str, str]], temperature: float, max_tokens: int
     ) -> str:
         """
         Generate completion using Gemini API.
@@ -220,10 +210,7 @@ class LLMService:
         gemini_messages = self._convert_to_gemini_format(messages)
 
         # Configure generation parameters
-        generation_config = GenerationConfig(
-            temperature=temperature,
-            max_output_tokens=max_tokens
-        )
+        generation_config = GenerationConfig(temperature=temperature, max_output_tokens=max_tokens)
 
         # Configure safety settings - LESS restrictive for educational content
         safety_settings = {
@@ -235,9 +222,7 @@ class LLMService:
 
         # Generate response
         response = self.client.generate_content(
-            gemini_messages,
-            generation_config=generation_config,
-            safety_settings=safety_settings
+            gemini_messages, generation_config=generation_config, safety_settings=safety_settings
         )
 
         # Check if response was blocked by safety filters
@@ -292,10 +277,7 @@ class LLMService:
                 content = "\n\n".join(system_context) + "\n\n" + content
                 system_context = []
 
-            gemini_messages.append({
-                "role": gemini_role,
-                "parts": [content]
-            })
+            gemini_messages.append({"role": gemini_role, "parts": [content]})
 
         return gemini_messages
 
@@ -336,10 +318,7 @@ class LLMService:
         return total
 
     def switch_provider(
-        self,
-        provider: LLMProvider,
-        api_key: Optional[str] = None,
-        model: Optional[str] = None
+        self, provider: LLMProvider, api_key: Optional[str] = None, model: Optional[str] = None
     ) -> None:
         """
         Switch to a different LLM provider.
@@ -377,11 +356,7 @@ class LLMService:
         try:
             # Test with a minimal completion
             test_messages = [{"role": "user", "content": "Hi"}]
-            response = self.chat_completion(
-                messages=test_messages,
-                max_tokens=5,
-                retry_count=1
-            )
+            response = self.chat_completion(messages=test_messages, max_tokens=5, retry_count=1)
             return bool(response)
         except Exception as e:
             logger.error(f"LLM availability check failed: {e}")
@@ -400,7 +375,7 @@ class LLMService:
             "temperature": settings.llm_temperature,
             "max_tokens": settings.llm_max_tokens,
             "timeout": settings.llm_timeout,
-            "has_api_key": bool(self.api_key)
+            "has_api_key": bool(self.api_key),
         }
 
     def __repr__(self) -> str:
@@ -411,7 +386,7 @@ class LLMService:
 def create_llm_service(
     provider: Optional[LLMProvider] = None,
     api_key: Optional[str] = None,
-    model: Optional[str] = None
+    model: Optional[str] = None,
 ) -> LLMService:
     """
     Factory function to create LLM service instance.

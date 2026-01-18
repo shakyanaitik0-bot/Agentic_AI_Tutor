@@ -3,19 +3,16 @@ Feedback and progress API endpoints.
 
 Handles progress reports and performance analysis.
 """
+
 import logging
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session as DBSessionType
 
-from app.api.dependencies import get_db, get_student_by_id
+from app.api.dependencies import get_db
 from app.models.student import Student
 from app.models.session import Session as DBSession
 from app.agents.feedback_agent import create_feedback_agent
-from app.schemas.feedback import (
-    FeedbackRequest,
-    ProgressReportResponse,
-    ReportType
-)
+from app.schemas.feedback import FeedbackRequest, ProgressReportResponse, ReportType
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -25,7 +22,7 @@ logger = logging.getLogger(__name__)
 def get_progress_report(
     student_id: str,
     report_type: ReportType = Query(ReportType.STUDENT, description="Type of report"),
-    db: DBSessionType = Depends(get_db)
+    db: DBSessionType = Depends(get_db),
 ):
     """
     Get progress report for a student.
@@ -45,23 +42,19 @@ def get_progress_report(
     student = db.query(Student).filter(Student.id == student_id).first()
     if not student:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Student {student_id} not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Student {student_id} not found"
         )
 
     # Get or create session for feedback
-    active_session = db.query(DBSession).filter(
-        DBSession.student_id == student.id,
-        DBSession.is_active == True
-    ).first()
+    active_session = (
+        db.query(DBSession)
+        .filter(DBSession.student_id == student.id, DBSession.is_active == True)
+        .first()
+    )
 
     if not active_session:
         # Create temporary session for feedback
-        active_session = DBSession(
-            student_id=student.id,
-            is_active=True,
-            session_type="feedback"
-        )
+        active_session = DBSession(student_id=student.id, is_active=True, session_type="feedback")
         db.add(active_session)
         db.commit()
         db.refresh(active_session)
@@ -70,17 +63,13 @@ def get_progress_report(
 
     try:
         # Create feedback agent
-        feedback_agent = create_feedback_agent(
-            student=student,
-            session=active_session,
-            db=db
-        )
+        feedback_agent = create_feedback_agent(student=student, session=active_session, db=db)
 
         # Generate report
         result = feedback_agent.execute(
             f"Show progress report",
             report_type=report_type.value,
-            format="json"  # Request JSON format for structured data
+            format="json",  # Request JSON format for structured data
         )
 
         # Extract report data based on format
@@ -97,10 +86,12 @@ def get_progress_report(
                 declining_topics=data.get("declining_topics", []),
                 recommendations=data.get("recommendations", []),
                 needs_replanning=data.get("needs_replanning", False),
-                report_summary=data.get("summary")
+                report_summary=data.get("summary"),
             )
 
-            logger.info(f"Generated report: {getattr(response.overall_stats, 'total_topics', 0)} topics analyzed")
+            logger.info(
+                f"Generated report: {getattr(response.overall_stats, 'total_topics', 0)} topics analyzed"
+            )
 
             return response
         else:
@@ -117,29 +108,26 @@ def get_progress_report(
                     "weak_topics_count": 0,
                     "strong_topics_count": 0,
                     "mastery_topics_count": 0,
-                    "recently_practiced_count": 0
+                    "recently_practiced_count": 0,
                 },
                 weak_topics=[],
                 strong_topics=[],
                 improving_topics=[],
                 declining_topics=[],
                 recommendations=["Complete some quizzes to see your progress"],
-                needs_replanning=False
+                needs_replanning=False,
             )
 
     except Exception as e:
         logger.error(f"Error generating progress report: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error generating progress report: {str(e)}"
+            detail=f"Error generating progress report: {str(e)}",
         )
 
 
 @router.post("/request", response_model=ProgressReportResponse)
-def request_feedback(
-    request: FeedbackRequest,
-    db: DBSessionType = Depends(get_db)
-):
+def request_feedback(request: FeedbackRequest, db: DBSessionType = Depends(get_db)):
     """
     Request a customized feedback report.
 
@@ -154,7 +142,5 @@ def request_feedback(
         HTTPException: 404 if student not found
     """
     return get_progress_report(
-        student_id=request.student_id,
-        report_type=request.report_type,
-        db=db
+        student_id=request.student_id, report_type=request.report_type, db=db
     )

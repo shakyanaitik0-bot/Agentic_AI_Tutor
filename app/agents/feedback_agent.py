@@ -9,15 +9,16 @@ Provides comprehensive performance analysis and personalized recommendations:
 - Progress reports for students/teachers/parents
 - Determines when replanning is needed
 """
+
 import logging
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, List
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session as DBSession
 
-from app.agents.base_agent import BaseAgent, AgentState
+from app.agents.base_agent import BaseAgent
 from app.models.student import Student
 from app.models.session import Session
-from app.models.progress import Progress, StrengthLevel
+from app.models.progress import Progress
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -35,7 +36,7 @@ class PerformanceReport:
         improving_topics: List[Dict[str, Any]],
         declining_topics: List[Dict[str, Any]],
         recommendations: List[str],
-        needs_replanning: bool
+        needs_replanning: bool,
     ):
         """Initialize performance report."""
         self.student_id = student_id
@@ -59,7 +60,7 @@ class PerformanceReport:
             "improving_topics": self.improving_topics,
             "declining_topics": self.declining_topics,
             "recommendations": self.recommendations,
-            "needs_replanning": self.needs_replanning
+            "needs_replanning": self.needs_replanning,
         }
 
 
@@ -77,13 +78,7 @@ class FeedbackAgent(BaseAgent):
     - Trigger replanning when needed
     """
 
-    def __init__(
-        self,
-        student: Student,
-        session: Session,
-        db: DBSession,
-        **kwargs
-    ):
+    def __init__(self, student: Student, session: Session, db: DBSession, **kwargs):
         """
         Initialize Feedback Agent.
 
@@ -93,12 +88,7 @@ class FeedbackAgent(BaseAgent):
             db: Database session for querying Progress
             **kwargs: Additional arguments for BaseAgent
         """
-        super().__init__(
-            agent_name="FeedbackAgent",
-            student=student,
-            session=session,
-            **kwargs
-        )
+        super().__init__(agent_name="FeedbackAgent", student=student, session=session, **kwargs)
         self.db = db
 
         # Load feedback configuration
@@ -111,7 +101,9 @@ class FeedbackAgent(BaseAgent):
 
         # Trend detection
         self.min_attempts_for_trend = feedback_config.get("min_attempts_for_trend", 5)
-        self.improvement_threshold = feedback_config.get("improvement_threshold", 10.0)  # % increase
+        self.improvement_threshold = feedback_config.get(
+            "improvement_threshold", 10.0
+        )  # % increase
 
         # Replanning triggers
         self.new_weak_topics_threshold = feedback_config.get("new_weak_topics_threshold", 2)
@@ -149,7 +141,7 @@ class FeedbackAgent(BaseAgent):
                 "agent": "FeedbackAgent",
                 "report_type": "teacher",
                 "format": "json",
-                "data": result
+                "data": result,
             }
         elif report_type == "data":
             # Raw data format
@@ -157,7 +149,7 @@ class FeedbackAgent(BaseAgent):
                 "agent": "FeedbackAgent",
                 "report_type": "data",
                 "format": "json",
-                "data": report.to_dict()
+                "data": report.to_dict(),
             }
         else:  # student (default)
             # Student-friendly report
@@ -171,8 +163,8 @@ class FeedbackAgent(BaseAgent):
                         "weak_topics": report.weak_topics[:5],
                         "strong_topics": report.strong_topics[:5],
                         "recommendations": report.recommendations,
-                        "needs_replanning": report.needs_replanning
-                    }
+                        "needs_replanning": report.needs_replanning,
+                    },
                 }
             else:
                 # Text format
@@ -182,7 +174,7 @@ class FeedbackAgent(BaseAgent):
                     "report_type": "student",
                     "format": "text",
                     "content": report_text,
-                    "needs_replanning": report.needs_replanning
+                    "needs_replanning": report.needs_replanning,
                 }
 
     def analyze_performance(self) -> PerformanceReport:
@@ -195,9 +187,9 @@ class FeedbackAgent(BaseAgent):
         logger.info(f"Analyzing performance for student {self.student.id}")
 
         # Retrieve all progress records
-        progress_records = self.db.query(Progress).filter(
-            Progress.student_id == self.student.id
-        ).all()
+        progress_records = (
+            self.db.query(Progress).filter(Progress.student_id == self.student.id).all()
+        )
 
         if not progress_records:
             logger.warning(f"No progress records found for student {self.student.id}")
@@ -239,14 +231,14 @@ class FeedbackAgent(BaseAgent):
             strong_topics=strong_topics,
             improving_topics=improving_topics,
             declining_topics=declining_topics,
-            overall_stats=overall_stats
+            overall_stats=overall_stats,
         )
 
         # Determine if replanning is needed
         needs_replanning = self._should_replan(
             weak_topics=weak_topics,
             declining_topics=declining_topics,
-            progress_records=progress_records
+            progress_records=progress_records,
         )
 
         report = PerformanceReport(
@@ -257,7 +249,7 @@ class FeedbackAgent(BaseAgent):
             improving_topics=improving_topics,
             declining_topics=declining_topics,
             recommendations=recommendations,
-            needs_replanning=needs_replanning
+            needs_replanning=needs_replanning,
         )
 
         logger.info(
@@ -278,7 +270,9 @@ class FeedbackAgent(BaseAgent):
 
         # Count topics by strength level
         weak_count = sum(1 for p in progress_records if p.accuracy_percentage < self.weak_threshold)
-        strong_count = sum(1 for p in progress_records if p.accuracy_percentage > self.strong_threshold)
+        strong_count = sum(
+            1 for p in progress_records if p.accuracy_percentage > self.strong_threshold
+        )
         mastery_count = sum(1 for p in progress_records if p.mastery_achieved)
 
         # Recent activity
@@ -294,7 +288,7 @@ class FeedbackAgent(BaseAgent):
             "weak_topics_count": weak_count,
             "strong_topics_count": strong_count,
             "mastery_topics_count": mastery_count,
-            "recently_practiced_count": recent_practice
+            "recently_practiced_count": recent_practice,
         }
 
     def _analyze_topic(self, record: Progress) -> Dict[str, Any]:
@@ -335,7 +329,7 @@ class FeedbackAgent(BaseAgent):
             "needs_review": record.needs_review,
             "trend": trend,
             "trend_value": round(trend_value, 1),
-            "common_mistakes": record.common_mistakes or []
+            "common_mistakes": record.common_mistakes or [],
         }
 
     def _generate_recommendations(
@@ -344,7 +338,7 @@ class FeedbackAgent(BaseAgent):
         strong_topics: List[Dict[str, Any]],
         improving_topics: List[Dict[str, Any]],
         declining_topics: List[Dict[str, Any]],
-        overall_stats: Dict[str, Any]
+        overall_stats: Dict[str, Any],
     ) -> List[str]:
         """
         Generate personalized recommendations with LLM or fallback.
@@ -378,9 +372,10 @@ Return ONLY a JSON array of recommendation strings:
 
             # Parse JSON recommendations
             import json
+
             # Extract JSON array from response
-            json_start = response.find('[')
-            json_end = response.rfind(']') + 1
+            json_start = response.find("[")
+            json_end = response.rfind("]") + 1
             if json_start >= 0 and json_end > json_start:
                 json_str = response[json_start:json_end]
                 recommendations = json.loads(json_str)
@@ -403,7 +398,7 @@ Return ONLY a JSON array of recommendation strings:
         strong_topics: List[Dict[str, Any]],
         improving_topics: List[Dict[str, Any]],
         declining_topics: List[Dict[str, Any]],
-        overall_stats: Dict[str, Any]
+        overall_stats: Dict[str, Any],
     ) -> str:
         """Build context string for recommendations prompt."""
         context_parts = []
@@ -411,7 +406,9 @@ Return ONLY a JSON array of recommendation strings:
         context_parts.append(f"Overall Performance:")
         context_parts.append(f"- Topics studied: {overall_stats['total_topics']}")
         context_parts.append(f"- Overall accuracy: {overall_stats['overall_accuracy']}%")
-        context_parts.append(f"- Total practice time: {overall_stats['total_time_minutes']} minutes")
+        context_parts.append(
+            f"- Total practice time: {overall_stats['total_time_minutes']} minutes"
+        )
 
         if weak_topics:
             context_parts.append(f"\nWeak Topics ({len(weak_topics)}):")
@@ -424,12 +421,16 @@ Return ONLY a JSON array of recommendation strings:
         if declining_topics:
             context_parts.append(f"\nDeclining Topics ({len(declining_topics)}):")
             for topic in declining_topics[:2]:
-                context_parts.append(f"- {topic['topic']}: {topic['accuracy']}% accuracy, declining trend")
+                context_parts.append(
+                    f"- {topic['topic']}: {topic['accuracy']}% accuracy, declining trend"
+                )
 
         if improving_topics:
             context_parts.append(f"\nImproving Topics ({len(improving_topics)}):")
             for topic in improving_topics[:2]:
-                context_parts.append(f"- {topic['topic']}: {topic['accuracy']}% accuracy, improving trend")
+                context_parts.append(
+                    f"- {topic['topic']}: {topic['accuracy']}% accuracy, improving trend"
+                )
 
         if strong_topics:
             context_parts.append(f"\nStrong Topics ({len(strong_topics)}):")
@@ -444,7 +445,7 @@ Return ONLY a JSON array of recommendation strings:
         strong_topics: List[Dict[str, Any]],
         improving_topics: List[Dict[str, Any]],
         declining_topics: List[Dict[str, Any]],
-        overall_stats: Dict[str, Any]
+        overall_stats: Dict[str, Any],
     ) -> List[str]:
         """Create fallback recommendations when LLM fails."""
         recommendations = []
@@ -476,7 +477,7 @@ Return ONLY a JSON array of recommendation strings:
         # Suggest advancing difficulty
         if strong_topics:
             for topic in strong_topics:
-                if topic['difficulty'] != 'hard' and topic['accuracy'] > 85:
+                if topic["difficulty"] != "hard" and topic["accuracy"] > 85:
                     recommendations.append(
                         f"You've mastered {topic['topic']} at {topic['difficulty']} level. "
                         f"Try advancing to harder questions to challenge yourself."
@@ -484,7 +485,7 @@ Return ONLY a JSON array of recommendation strings:
                     break
 
         # Time management
-        if overall_stats['recently_practiced_count'] < overall_stats['total_topics'] / 2:
+        if overall_stats["recently_practiced_count"] < overall_stats["total_topics"] / 2:
             recommendations.append(
                 "Try to practice all topics regularly to maintain retention. "
                 "Aim for at least 2-3 practice sessions per week."
@@ -503,7 +504,7 @@ Return ONLY a JSON array of recommendation strings:
         self,
         weak_topics: List[Dict[str, Any]],
         declining_topics: List[Dict[str, Any]],
-        progress_records: List[Progress]
+        progress_records: List[Progress],
     ) -> bool:
         """
         Determine if student needs a new study plan.
@@ -549,14 +550,14 @@ Return ONLY a JSON array of recommendation strings:
                 "weak_topics_count": 0,
                 "strong_topics_count": 0,
                 "mastery_topics_count": 0,
-                "recently_practiced_count": 0
+                "recently_practiced_count": 0,
             },
             weak_topics=[],
             strong_topics=[],
             improving_topics=[],
             declining_topics=[],
             recommendations=["Start practicing to track your progress!"],
-            needs_replanning=False
+            needs_replanning=False,
         )
 
     def create_student_report(self, report: PerformanceReport) -> str:
@@ -586,7 +587,9 @@ Return ONLY a JSON array of recommendation strings:
         if report.weak_topics:
             lines.append(f"Topics Needing Attention ({len(report.weak_topics)}):")
             for topic in report.weak_topics[:5]:
-                lines.append(f"  - {topic['topic']}: {topic['accuracy']}% ({topic['attempts']} attempts)")
+                lines.append(
+                    f"  - {topic['topic']}: {topic['accuracy']}% ({topic['attempts']} attempts)"
+                )
             lines.append("")
 
         # Strong topics
@@ -603,7 +606,9 @@ Return ONLY a JSON array of recommendation strings:
         lines.append("")
 
         if report.needs_replanning:
-            lines.append("NOTE: Consider creating a new study plan to address recent changes in your progress.")
+            lines.append(
+                "NOTE: Consider creating a new study plan to address recent changes in your progress."
+            )
 
         lines.append("=" * 60)
 
@@ -627,27 +632,25 @@ Return ONLY a JSON array of recommendation strings:
                 "total_topics": report.overall_stats["total_topics"],
                 "mastery_count": report.overall_stats["mastery_topics_count"],
                 "weak_count": report.overall_stats["weak_topics_count"],
-                "total_practice_minutes": report.overall_stats["total_time_minutes"]
+                "total_practice_minutes": report.overall_stats["total_time_minutes"],
             },
             "areas_of_concern": {
                 "weak_topics": report.weak_topics,
-                "declining_topics": report.declining_topics
+                "declining_topics": report.declining_topics,
             },
             "areas_of_strength": {
                 "strong_topics": report.strong_topics,
-                "improving_topics": report.improving_topics
+                "improving_topics": report.improving_topics,
             },
             "recommendations": report.recommendations,
             "action_required": report.needs_replanning,
-            "next_steps": "Create new study plan" if report.needs_replanning else "Continue current plan"
+            "next_steps": "Create new study plan"
+            if report.needs_replanning
+            else "Continue current plan",
         }
 
 
-def create_feedback_agent(
-    student: Student,
-    session: Session,
-    db: DBSession
-) -> FeedbackAgent:
+def create_feedback_agent(student: Student, session: Session, db: DBSession) -> FeedbackAgent:
     """
     Factory function to create a Feedback Agent instance.
 
@@ -659,8 +662,4 @@ def create_feedback_agent(
     Returns:
         FeedbackAgent: Initialized agent
     """
-    return FeedbackAgent(
-        student=student,
-        session=session,
-        db=db
-    )
+    return FeedbackAgent(student=student, session=session, db=db)

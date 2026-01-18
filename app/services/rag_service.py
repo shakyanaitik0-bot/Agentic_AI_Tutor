@@ -7,6 +7,7 @@ Handles:
 - Vector storage in Pinecone
 - Semantic search and retrieval
 """
+
 import logging
 import hashlib
 from typing import List, Dict, Any, Optional, Tuple
@@ -25,10 +26,7 @@ class Document:
     """Represents a document chunk with metadata"""
 
     def __init__(
-        self,
-        content: str,
-        metadata: Optional[Dict[str, Any]] = None,
-        doc_id: Optional[str] = None
+        self, content: str, metadata: Optional[Dict[str, Any]] = None, doc_id: Optional[str] = None
     ):
         self.content = content
         self.metadata = metadata or {}
@@ -42,11 +40,7 @@ class Document:
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for storage"""
-        return {
-            "id": self.doc_id,
-            "content": self.content,
-            "metadata": self.metadata
-        }
+        return {"id": self.doc_id, "content": self.content, "metadata": self.metadata}
 
 
 class RAGService:
@@ -61,9 +55,7 @@ class RAGService:
     """
 
     def __init__(
-        self,
-        embedding_service: Optional[EmbeddingService] = None,
-        index_name: Optional[str] = None
+        self, embedding_service: Optional[EmbeddingService] = None, index_name: Optional[str] = None
     ):
         """
         Initialize RAG service.
@@ -134,9 +126,8 @@ class RAGService:
                 dimension=self.dimension,
                 metric=self.metric,
                 spec=ServerlessSpec(
-                    cloud="aws",
-                    region=settings.get("pinecone.environment", "us-east-1")
-                )
+                    cloud="aws", region=settings.get("pinecone.environment", "us-east-1")
+                ),
             )
             logger.info(f"Created new Pinecone index: {self.index_name}")
 
@@ -144,11 +135,7 @@ class RAGService:
             logger.error(f"Failed to create Pinecone index: {e}")
             raise
 
-    def chunk_text(
-        self,
-        text: str,
-        metadata: Optional[Dict[str, Any]] = None
-    ) -> List[Document]:
+    def chunk_text(self, text: str, metadata: Optional[Dict[str, Any]] = None) -> List[Document]:
         """
         Split text into chunks with overlap.
 
@@ -180,14 +167,14 @@ class RAGService:
                 "chunk_index": len(chunks),
                 "chunk_start": start,
                 "chunk_end": min(end, len(words)),
-                "total_words": len(words)
+                "total_words": len(words),
             }
 
             doc = Document(content=chunk_text, metadata=chunk_metadata)
             chunks.append(doc)
 
             # Move to next chunk with overlap
-            start += (self.chunk_size - self.chunk_overlap)
+            start += self.chunk_size - self.chunk_overlap
 
             # Break if we've covered all text
             if end >= len(words):
@@ -197,10 +184,7 @@ class RAGService:
         return chunks
 
     def upload_documents(
-        self,
-        documents: List[Document],
-        batch_size: int = 100,
-        namespace: Optional[str] = None
+        self, documents: List[Document], batch_size: int = 100, namespace: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Upload documents to Pinecone with embeddings.
@@ -238,20 +222,24 @@ class RAGService:
                 vectors = []
                 for doc, embedding in zip(batch, embeddings):
                     if embedding:  # Skip empty embeddings
-                        vectors.append({
-                            "id": doc.doc_id,
-                            "values": embedding,
-                            "metadata": {
-                                **doc.metadata,
-                                "content": doc.content[:1000]  # Store first 1000 chars
+                        vectors.append(
+                            {
+                                "id": doc.doc_id,
+                                "values": embedding,
+                                "metadata": {
+                                    **doc.metadata,
+                                    "content": doc.content[:1000],  # Store first 1000 chars
+                                },
                             }
-                        })
+                        )
 
                 # Upload to Pinecone
                 if vectors:
                     self.index.upsert(vectors=vectors, namespace=namespace or "")
                     uploaded += len(vectors)
-                    logger.debug(f"Uploaded batch {batch_start // batch_size + 1}: {len(vectors)} vectors")
+                    logger.debug(
+                        f"Uploaded batch {batch_start // batch_size + 1}: {len(vectors)} vectors"
+                    )
 
             except Exception as e:
                 logger.error(f"Failed to upload batch {batch_start // batch_size + 1}: {e}")
@@ -259,11 +247,7 @@ class RAGService:
 
         logger.info(f"Upload complete: {uploaded} uploaded, {failed} failed")
 
-        return {
-            "uploaded": uploaded,
-            "failed": failed,
-            "total": len(documents)
-        }
+        return {"uploaded": uploaded, "failed": failed, "total": len(documents)}
 
     def search(
         self,
@@ -271,7 +255,7 @@ class RAGService:
         top_k: Optional[int] = None,
         metadata_filter: Optional[Dict[str, Any]] = None,
         namespace: Optional[str] = None,
-        include_metadata: bool = True
+        include_metadata: bool = True,
     ) -> List[Dict[str, Any]]:
         """
         Semantic search for relevant documents.
@@ -307,35 +291,41 @@ class RAGService:
                 top_k=top_k,
                 filter=metadata_filter,
                 namespace=namespace or "",
-                include_metadata=include_metadata
+                include_metadata=include_metadata,
             )
 
             logger.info(f"Pinecone returned {len(results.matches)} matches")
             if len(results.matches) > 0:
-                logger.debug(f"First match metadata: {results.matches[0].metadata if hasattr(results.matches[0], 'metadata') else 'No metadata'}")
+                logger.debug(
+                    f"First match metadata: {results.matches[0].metadata if hasattr(results.matches[0], 'metadata') else 'No metadata'}"
+                )
                 logger.debug(f"First match score: {results.matches[0].score}")
 
             # Format results
             formatted_results = []
             filtered_count = 0
             for match in results.matches:
-                logger.debug(f"Match: score={match.score:.3f}, threshold={self.similarity_threshold}, metadata={match.metadata.get('filename', 'N/A')}")
+                logger.debug(
+                    f"Match: score={match.score:.3f}, threshold={self.similarity_threshold}, metadata={match.metadata.get('filename', 'N/A')}"
+                )
 
                 # For student-specific documents, use lower threshold or skip threshold
-                is_student_doc = metadata_filter and 'student_id' in metadata_filter
+                is_student_doc = metadata_filter and "student_id" in metadata_filter
                 effective_threshold = 0.3 if is_student_doc else self.similarity_threshold
 
                 # Filter by similarity threshold
                 if match.score < effective_threshold:
                     filtered_count += 1
-                    logger.debug(f"Filtered out: score {match.score:.3f} < threshold {effective_threshold}")
+                    logger.debug(
+                        f"Filtered out: score {match.score:.3f} < threshold {effective_threshold}"
+                    )
                     continue
 
                 result = {
                     "id": match.id,
                     "score": match.score,
                     "content": match.metadata.get("content", "") if include_metadata else "",
-                    "metadata": match.metadata if include_metadata else {}
+                    "metadata": match.metadata if include_metadata else {},
                 }
                 formatted_results.append(result)
 
@@ -354,10 +344,7 @@ class RAGService:
             return []
 
     def get_context(
-        self,
-        query: str,
-        max_tokens: Optional[int] = None,
-        **search_kwargs
+        self, query: str, max_tokens: Optional[int] = None, **search_kwargs
     ) -> Tuple[str, List[Dict[str, Any]]]:
         """
         Get contextual information for a query.
@@ -402,10 +389,7 @@ class RAGService:
 
         context = "\n\n".join(context_parts)
 
-        logger.debug(
-            f"Generated context: {len(context_parts)} chunks, "
-            f"~{total_tokens} tokens"
-        )
+        logger.debug(f"Generated context: {len(context_parts)} chunks, ~{total_tokens} tokens")
 
         return context, sources
 
@@ -435,7 +419,7 @@ class RAGService:
                 "total_vectors": stats.total_vector_count,
                 "dimension": self.dimension,
                 "index_fullness": stats.index_fullness,
-                "namespaces": stats.namespaces
+                "namespaces": stats.namespaces,
             }
         except Exception as e:
             logger.error(f"Failed to get index stats: {e}")
@@ -450,9 +434,7 @@ class RAGService:
             return False
 
     def add_documents(
-        self,
-        chunks: List[Dict[str, Any]],
-        metadata: Optional[Dict[str, Any]] = None
+        self, chunks: List[Dict[str, Any]], metadata: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
         Add processed document chunks to the vector store.
@@ -473,10 +455,7 @@ class RAGService:
             if metadata:
                 chunk_metadata.update(metadata)
 
-            doc = Document(
-                content=chunk["text"],
-                metadata=chunk_metadata
-            )
+            doc = Document(content=chunk["text"], metadata=chunk_metadata)
             documents.append(doc)
 
         # Upload to vector store
@@ -505,7 +484,7 @@ class RAGService:
                 vector=dummy_embedding,
                 filter={"student_id": student_id},
                 top_k=10000,  # Get all documents
-                include_metadata=True
+                include_metadata=True,
             )
 
             # Group by filename to get unique documents
@@ -519,7 +498,7 @@ class RAGService:
                         "filename": filename,
                         "subject": metadata.get("subject", "General"),
                         "num_chunks": 0,
-                        "uploaded_at": metadata.get("uploaded_at", "Unknown")
+                        "uploaded_at": metadata.get("uploaded_at", "Unknown"),
                     }
 
                 documents_by_file[filename]["num_chunks"] += 1
@@ -540,8 +519,7 @@ class RAGService:
 
 
 def create_rag_service(
-    embedding_service: Optional[EmbeddingService] = None,
-    index_name: Optional[str] = None
+    embedding_service: Optional[EmbeddingService] = None, index_name: Optional[str] = None
 ) -> RAGService:
     """
     Factory function to create RAG service instance.
@@ -553,10 +531,7 @@ def create_rag_service(
     Returns:
         RAGService: Configured RAG service instance
     """
-    return RAGService(
-        embedding_service=embedding_service,
-        index_name=index_name
-    )
+    return RAGService(embedding_service=embedding_service, index_name=index_name)
 
 
 # Global singleton instance

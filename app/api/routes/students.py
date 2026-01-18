@@ -3,6 +3,7 @@ Student management API endpoints.
 
 Handles student registration and profile retrieval.
 """
+
 import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -16,10 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 @router.post("/register", response_model=StudentResponse, status_code=status.HTTP_201_CREATED)
-def register_student(
-    student_data: StudentCreate,
-    db: Session = Depends(get_db)
-):
+def register_student(student_data: StudentCreate, db: Session = Depends(get_db)):
     """
     Register a new student.
 
@@ -38,7 +36,7 @@ def register_student(
     if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Student with email {student_data.email} already exists"
+            detail=f"Student with email {student_data.email} already exists",
         )
 
     # Create new student
@@ -48,7 +46,7 @@ def register_student(
         exam_type=student_data.exam_type.value,
         weak_areas=student_data.weak_areas or [],
         strong_areas=student_data.strong_areas or [],
-        learning_preferences=student_data.learning_preferences or {}
+        learning_preferences=student_data.learning_preferences or {},
     )
 
     # Set password (hashed)
@@ -70,10 +68,7 @@ def register_student(
 
 
 @router.post("/login", response_model=StudentResponse)
-def login_student(
-    login_data: StudentLogin,
-    db: Session = Depends(get_db)
-):
+def login_student(login_data: StudentLogin, db: Session = Depends(get_db)):
     """
     Student login with email and password.
 
@@ -92,15 +87,13 @@ def login_student(
 
     if not student:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password"
         )
 
     # Verify password
     if not student.verify_password(login_data.password):
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password"
         )
 
     # Update last active

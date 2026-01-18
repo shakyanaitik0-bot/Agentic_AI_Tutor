@@ -4,6 +4,7 @@ FastAPI application for Agentic AI Tutor.
 Main entry point for the REST API server.
 Coordinates multi-agent system for adaptive learning.
 """
+
 import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, status
@@ -14,10 +15,13 @@ from fastapi.exceptions import RequestValidationError
 from app.core.config import settings
 from app.api import api_router
 
+# Import all models to ensure SQLAlchemy relationships are resolved
+from app.models import Student, Session, Progress, Quiz, FlashcardDeck, Flashcard  # noqa: F401
+
 # Configure logging
 logging.basicConfig(
     level=getattr(logging, settings.get("logging.level", "INFO")),
-    format=settings.get("logging.format", "%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    format=settings.get("logging.format", "%(asctime)s - %(name)s - %(levelname)s - %(message)s"),
 )
 logger = logging.getLogger(__name__)
 
@@ -40,9 +44,11 @@ async def lifespan(app: FastAPI):
 # Initialize FastAPI app
 app = FastAPI(
     title=settings.get("api.title", "Agentic AI Tutor API"),
-    description=settings.get("api.description", "Adaptive learning platform with multi-agent AI tutoring"),
+    description=settings.get(
+        "api.description", "Adaptive learning platform with multi-agent AI tutoring"
+    ),
     version=settings.get("api.version", "0.1.0"),
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 
@@ -69,8 +75,8 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         content={
             "error": "ValidationError",
             "message": "Request validation failed",
-            "details": exc.errors()
-        }
+            "details": exc.errors(),
+        },
     )
 
 
@@ -83,8 +89,8 @@ async def global_exception_handler(request: Request, exc: Exception):
         content={
             "error": "InternalServerError",
             "message": "An unexpected error occurred",
-            "details": str(exc) if settings.get("debug", False) else None
-        }
+            "details": str(exc) if settings.get("debug", False) else None,
+        },
     )
 
 
@@ -101,7 +107,7 @@ async def health_check():
         "service": "agentic-ai-tutor",
         "version": settings.get("api.version", "0.1.0"),
         "llm_provider": settings.get("llm.provider"),
-        "embedding_provider": settings.get("embeddings.provider")
+        "embedding_provider": settings.get("embeddings.provider"),
     }
 
 
@@ -115,7 +121,7 @@ async def root():
         "message": "Agentic AI Tutor API",
         "version": settings.get("api.version", "0.1.0"),
         "docs": "/docs",
-        "health": "/health"
+        "health": "/health",
     }
 
 
@@ -132,5 +138,5 @@ if __name__ == "__main__":
         host="0.0.0.0",
         port=8000,
         reload=True,  # Auto-reload on code changes
-        log_level=settings.get("logging.level", "info").lower()
+        log_level=settings.get("logging.level", "info").lower(),
     )

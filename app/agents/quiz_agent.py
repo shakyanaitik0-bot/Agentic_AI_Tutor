@@ -11,6 +11,7 @@ Addresses Problem Statement objectives:
 - "Adapt based on progress, weak topics, and learning pace"
 - "Introduce active recall techniques (self-testing) into learning loop"
 """
+
 import logging
 import json
 from typing import Dict, Any, Optional, List
@@ -20,7 +21,7 @@ from sqlalchemy.orm import Session as DBSession
 from app.agents.base_agent import BaseAgent
 from app.models.student import Student
 from app.models.session import Session
-from app.models.progress import Progress, DifficultyLevel
+from app.models.progress import Progress
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -37,7 +38,7 @@ class QuizQuestion:
         explanation: str,
         topic: str,
         difficulty: str,
-        question_id: Optional[str] = None
+        question_id: Optional[str] = None,
     ):
         self.question_id = question_id or f"q_{hash(question_text) % 10000}"
         self.question_text = question_text
@@ -56,7 +57,7 @@ class QuizQuestion:
             "correct_answer_index": self.correct_answer_index,
             "explanation": self.explanation,
             "topic": self.topic,
-            "difficulty": self.difficulty
+            "difficulty": self.difficulty,
         }
 
     def check_answer(self, selected_index: int) -> bool:
@@ -68,11 +69,7 @@ class Quiz:
     """Represents a complete quiz"""
 
     def __init__(
-        self,
-        topic: str,
-        difficulty: str,
-        num_questions: int,
-        quiz_id: Optional[str] = None
+        self, topic: str, difficulty: str, num_questions: int, quiz_id: Optional[str] = None
     ):
         self.quiz_id = quiz_id or f"quiz_{int(datetime.now().timestamp() * 1000)}"
         self.topic = topic
@@ -93,7 +90,7 @@ class Quiz:
             "difficulty": self.difficulty,
             "num_questions": len(self.questions),
             "questions": [q.to_dict() for q in self.questions],
-            "created_at": self.created_at.isoformat()
+            "created_at": self.created_at.isoformat(),
         }
 
 
@@ -110,13 +107,7 @@ class QuizGeneratorAgent(BaseAgent):
     - Validates quiz quality
     """
 
-    def __init__(
-        self,
-        student: Student,
-        session: Session,
-        db: DBSession,
-        **kwargs
-    ):
+    def __init__(self, student: Student, session: Session, db: DBSession, **kwargs):
         """
         Initialize Quiz Generator Agent.
 
@@ -127,10 +118,7 @@ class QuizGeneratorAgent(BaseAgent):
             **kwargs: Additional arguments for BaseAgent
         """
         super().__init__(
-            agent_name="QuizGeneratorAgent",
-            student=student,
-            session=session,
-            **kwargs
+            agent_name="QuizGeneratorAgent", student=student, session=session, **kwargs
         )
         self.db = db
 
@@ -206,11 +194,7 @@ Always create questions that:
         self.log_interaction(
             user_input,
             f"Generated {len(quiz.questions)}-question quiz on {topic} ({difficulty})",
-            {
-                "topic": topic,
-                "difficulty": difficulty,
-                "num_questions": len(quiz.questions)
-            }
+            {"topic": topic, "difficulty": difficulty, "num_questions": len(quiz.questions)},
         )
 
         return {
@@ -219,9 +203,9 @@ Always create questions that:
                 "topic": topic,
                 "difficulty": difficulty,
                 "num_questions": len(quiz.questions),
-                "has_rag_context": len(context) > 0
+                "has_rag_context": len(context) > 0,
             },
-            "agent": self.agent_name
+            "agent": self.agent_name,
         }
 
     def _extract_topic(self, user_input: str) -> str:
@@ -248,16 +232,26 @@ Always create questions that:
             if match:
                 topic = match.group(1).strip()
                 # Clean up common words
-                topic = re.sub(r'^(?:a|an|the|some)\s+', '', topic)
+                topic = re.sub(r"^(?:a|an|the|some)\s+", "", topic)
                 topic = topic.title()
                 logger.info(f"Extracted topic from user input: '{topic}'")
                 return topic
 
         # Fallback: check for common topics
         common_topics = [
-            "algebra", "calculus", "geometry", "trigonometry", "probability",
-            "physics", "mechanics", "thermodynamics", "electromagnetism",
-            "chemistry", "organic", "inorganic", "mathematics"
+            "algebra",
+            "calculus",
+            "geometry",
+            "trigonometry",
+            "probability",
+            "physics",
+            "mechanics",
+            "thermodynamics",
+            "electromagnetism",
+            "chemistry",
+            "organic",
+            "inorganic",
+            "mathematics",
         ]
 
         user_input_lower = user_input.lower()
@@ -280,10 +274,11 @@ Always create questions that:
             str: Difficulty level (easy/medium/hard)
         """
         # Query student's progress for this topic
-        progress = self.db.query(Progress).filter(
-            Progress.student_id == self.student.id,
-            Progress.topic == topic
-        ).first()
+        progress = (
+            self.db.query(Progress)
+            .filter(Progress.student_id == self.student.id, Progress.topic == topic)
+            .first()
+        )
 
         if not progress:
             # No progress data, start with easy
@@ -317,19 +312,19 @@ Always create questions that:
         # First try student-specific documents, then fall back to general content
         logger.info(f"Searching for student-specific documents with student_id={self.student.id}")
         context, sources = self.rag.get_context(
-            query=query,
-            top_k=3,
-            metadata_filter={"student_id": self.student.id}
+            query=query, top_k=3, metadata_filter={"student_id": self.student.id}
         )
-        logger.info(f"Student-specific search: Found {len(sources)} sources, context length: {len(context)}")
+        logger.info(
+            f"Student-specific search: Found {len(sources)} sources, context length: {len(context)}"
+        )
 
         # If no student-specific content found, try general content for exam type
         if not context.strip():
-            logger.info(f"No student-specific content found, trying general content for exam_type={self.student.exam_type}")
+            logger.info(
+                f"No student-specific content found, trying general content for exam_type={self.student.exam_type}"
+            )
             context, sources = self.rag.get_context(
-                query=query,
-                top_k=3,
-                metadata_filter={"exam_type": self.student.exam_type}
+                query=query, top_k=3, metadata_filter={"exam_type": self.student.exam_type}
             )
             logger.info(f"General search: Found {len(sources)} sources")
 
@@ -338,13 +333,7 @@ Always create questions that:
             logger.debug(f"First source metadata: {sources[0].get('metadata', {})}")
         return context
 
-    def _generate_quiz(
-        self,
-        topic: str,
-        difficulty: str,
-        num_questions: int,
-        context: str
-    ) -> Quiz:
+    def _generate_quiz(self, topic: str, difficulty: str, num_questions: int, context: str) -> Quiz:
         """
         Generate quiz using LLM.
 
@@ -368,11 +357,7 @@ Always create questions that:
         return quiz
 
     def _generate_question(
-        self,
-        topic: str,
-        difficulty: str,
-        context: str,
-        question_num: int
+        self, topic: str, difficulty: str, context: str, question_num: int
     ) -> Optional[QuizQuestion]:
         """
         Generate a single MCQ using LLM.
@@ -414,13 +399,13 @@ Question {question_num}:"""
             response = self.generate_response(
                 prompt,
                 temperature=0.8,  # Higher for creativity
-                max_tokens=500
+                max_tokens=500,
             )
 
             # Parse JSON response
             # Extract JSON from response (might have extra text)
-            json_start = response.find('{')
-            json_end = response.rfind('}') + 1
+            json_start = response.find("{")
+            json_end = response.rfind("}") + 1
             if json_start >= 0 and json_end > json_start:
                 json_str = response[json_start:json_end]
                 question_data = json.loads(json_str)
@@ -431,7 +416,7 @@ Question {question_num}:"""
                     correct_answer_index=question_data["correct_index"],
                     explanation=question_data["explanation"],
                     topic=topic,
-                    difficulty=difficulty
+                    difficulty=difficulty,
                 )
             else:
                 logger.error("No valid JSON found in LLM response")
@@ -442,11 +427,7 @@ Question {question_num}:"""
             # Return a fallback question
             return self._create_fallback_question(topic, difficulty)
 
-    def _create_fallback_question(
-        self,
-        topic: str,
-        difficulty: str
-    ) -> QuizQuestion:
+    def _create_fallback_question(self, topic: str, difficulty: str) -> QuizQuestion:
         """
         Create a simple fallback question if LLM generation fails.
 
@@ -463,12 +444,12 @@ Question {question_num}:"""
                 f"Core principle of {topic}",
                 f"Unrelated concept A",
                 f"Unrelated concept B",
-                f"Unrelated concept C"
+                f"Unrelated concept C",
             ],
             correct_answer_index=0,
             explanation=f"This is a {difficulty} level question about {topic}. Review your study materials for detailed explanations.",
             topic=topic,
-            difficulty=difficulty
+            difficulty=difficulty,
         )
 
     def _validate_quiz(self, quiz: Quiz) -> bool:
@@ -493,7 +474,9 @@ Question {question_num}:"""
 
             # Check options count
             if len(question.options) != 4:
-                logger.warning(f"Question {question.question_id} has {len(question.options)} options (need 4)")
+                logger.warning(
+                    f"Question {question.question_id} has {len(question.options)} options (need 4)"
+                )
                 return False
 
             # Check correct answer index is valid
@@ -503,11 +486,7 @@ Question {question_num}:"""
 
         return True
 
-    def grade_quiz(
-        self,
-        quiz_data: Dict[str, Any],
-        student_answers: List[int]
-    ) -> Dict[str, Any]:
+    def grade_quiz(self, quiz_data: Dict[str, Any], student_answers: List[int]) -> Dict[str, Any]:
         """
         Grade a completed quiz and update progress.
 
@@ -525,38 +504,40 @@ Question {question_num}:"""
 
         # Handle case where quiz data is not available
         if num_questions == 0:
-            logger.warning(f"Quiz {quiz_data.get('quiz_id', 'unknown')} has no questions - cannot grade")
+            logger.warning(
+                f"Quiz {quiz_data.get('quiz_id', 'unknown')} has no questions - cannot grade"
+            )
             return {
                 "total_questions": 0,
                 "correct_answers": 0,
                 "accuracy": 0.0,
                 "results": [],
                 "passed": False,
-                "error": "Quiz data not found - quizzes must be stored for grading"
+                "error": "Quiz data not found - quizzes must be stored for grading",
             }
 
         for idx, (question, answer) in enumerate(zip(questions, student_answers)):
             correct_index = question["correct_answer_index"]
-            is_correct = (answer == correct_index)
+            is_correct = answer == correct_index
 
             if is_correct:
                 correct_count += 1
 
-            results.append({
-                "question_id": question["question_id"],
-                "selected_answer": answer,
-                "correct_answer": correct_index,
-                "is_correct": is_correct,
-                "explanation": question["explanation"]
-            })
+            results.append(
+                {
+                    "question_id": question["question_id"],
+                    "selected_answer": answer,
+                    "correct_answer": correct_index,
+                    "is_correct": is_correct,
+                    "explanation": question["explanation"],
+                }
+            )
 
         accuracy = (correct_count / num_questions) * 100
 
         # Update Progress record
         self._update_progress(
-            topic=quiz_data["topic"],
-            difficulty=quiz_data["difficulty"],
-            results=results
+            topic=quiz_data["topic"], difficulty=quiz_data["difficulty"], results=results
         )
 
         return {
@@ -564,15 +545,10 @@ Question {question_num}:"""
             "correct_answers": correct_count,
             "accuracy": accuracy,
             "results": results,
-            "passed": accuracy >= 60.0  # 60% passing threshold
+            "passed": accuracy >= 60.0,  # 60% passing threshold
         }
 
-    def _update_progress(
-        self,
-        topic: str,
-        difficulty: str,
-        results: List[Dict[str, Any]]
-    ):
+    def _update_progress(self, topic: str, difficulty: str, results: List[Dict[str, Any]]):
         """
         Update student's progress record after quiz.
 
@@ -582,11 +558,15 @@ Question {question_num}:"""
             results: List of question results with is_correct field
         """
         # Find or create progress record
-        progress = self.db.query(Progress).filter(
-            Progress.student_id == self.student.id,
-            Progress.topic == topic,
-            Progress.difficulty_level == difficulty
-        ).first()
+        progress = (
+            self.db.query(Progress)
+            .filter(
+                Progress.student_id == self.student.id,
+                Progress.topic == topic,
+                Progress.difficulty_level == difficulty,
+            )
+            .first()
+        )
 
         if not progress:
             # Create new progress record
@@ -595,15 +575,14 @@ Question {question_num}:"""
                 topic=topic,
                 difficulty_level=difficulty,
                 total_attempts=0,
-                correct_answers=0
+                correct_answers=0,
             )
             self.db.add(progress)
 
         # Record each question attempt
         for result in results:
             progress.record_attempt(
-                is_correct=result["is_correct"],
-                question_type="multiple_choice"
+                is_correct=result["is_correct"], question_type="multiple_choice"
             )
 
         # Commit changes
@@ -616,10 +595,7 @@ Question {question_num}:"""
 
 
 def create_quiz_agent(
-    student: Student,
-    session: Session,
-    db: DBSession,
-    **kwargs
+    student: Student, session: Session, db: DBSession, **kwargs
 ) -> QuizGeneratorAgent:
     """
     Factory function to create a Quiz Generator Agent instance.

@@ -8,6 +8,7 @@ Provides foundational agent capabilities:
 - LLM interaction
 - Progress tracking
 """
+
 import logging
 from typing import Dict, Any, Optional, List
 from datetime import datetime
@@ -42,12 +43,14 @@ class AgentState:
         self.updated_at = datetime.now()
 
         # Log state change
-        self.history.append({
-            "timestamp": self.updated_at.isoformat(),
-            "key": key,
-            "old_value": old_value,
-            "new_value": value
-        })
+        self.history.append(
+            {
+                "timestamp": self.updated_at.isoformat(),
+                "key": key,
+                "old_value": old_value,
+                "new_value": value,
+            }
+        )
 
     def get(self, key: str, default: Any = None) -> Any:
         """Get a state value"""
@@ -59,7 +62,7 @@ class AgentState:
             "data": self.data,
             "history_length": len(self.history),
             "created_at": self.created_at.isoformat(),
-            "updated_at": self.updated_at.isoformat()
+            "updated_at": self.updated_at.isoformat(),
         }
 
     def __repr__(self) -> str:
@@ -87,7 +90,7 @@ class BaseAgent(ABC):
         session: Session,
         llm_service: Optional[LLMService] = None,
         rag_service: Optional[RAGService] = None,
-        config: Optional[Dict[str, Any]] = None
+        config: Optional[Dict[str, Any]] = None,
     ):
         """
         Initialize base agent.
@@ -116,10 +119,7 @@ class BaseAgent(ABC):
         self.created_at = datetime.now()
         self.total_calls = 0
 
-        logger.info(
-            f"Initialized {agent_name} for student {student.name} "
-            f"(session: {session.id})"
-        )
+        logger.info(f"Initialized {agent_name} for student {student.name} (session: {session.id})")
 
     def get_system_prompt(self) -> str:
         """
@@ -179,7 +179,7 @@ Provide your reasoning:"""
             messages=messages,
             system_prompt=self.get_system_prompt(),
             temperature=0.7,
-            max_tokens=500
+            max_tokens=500,
         )
 
         self.state.update("last_reasoning", response)
@@ -189,7 +189,7 @@ Provide your reasoning:"""
         self,
         query: str,
         top_k: Optional[int] = None,
-        metadata_filter: Optional[Dict[str, Any]] = None
+        metadata_filter: Optional[Dict[str, Any]] = None,
     ) -> str:
         """
         Retrieve relevant knowledge from RAG system.
@@ -208,16 +208,13 @@ Provide your reasoning:"""
 
         # Get context from RAG
         context, sources = self.rag.get_context(
-            query=query,
-            top_k=top_k,
-            metadata_filter=metadata_filter
+            query=query, top_k=top_k, metadata_filter=metadata_filter
         )
 
         # Update state with sources
-        self.state.update("last_retrieval_sources", [
-            {"id": src["id"], "score": src["score"]}
-            for src in sources
-        ])
+        self.state.update(
+            "last_retrieval_sources", [{"id": src["id"], "score": src["score"]} for src in sources]
+        )
 
         return context
 
@@ -226,7 +223,7 @@ Provide your reasoning:"""
         prompt: str,
         system_prompt: Optional[str] = None,
         temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None
+        max_tokens: Optional[int] = None,
     ) -> str:
         """
         Generate a response using the LLM.
@@ -249,7 +246,7 @@ Provide your reasoning:"""
             messages=messages,
             system_prompt=system_prompt or self.get_system_prompt(),
             temperature=temperature or self.config.get("temperature", 0.7),
-            max_tokens=max_tokens or self.config.get("max_tokens", 1000)
+            max_tokens=max_tokens or self.config.get("max_tokens", 1000),
         )
 
         return response
@@ -280,7 +277,7 @@ this decision was made and HOW it will help their learning:"""
             messages=messages,
             system_prompt=self.get_system_prompt(),
             temperature=0.5,
-            max_tokens=200
+            max_tokens=200,
         )
 
         return explanation
@@ -294,7 +291,9 @@ this decision was made and HOW it will help their learning:"""
 
         # Mark JSON column as modified so SQLAlchemy detects the change
         flag_modified(self.session, "agent_state")
-        logger.info(f"Session state updated and marked as modified: {list(self.state.to_dict().keys())}")
+        logger.info(
+            f"Session state updated and marked as modified: {list(self.state.to_dict().keys())}"
+        )
 
     def get_student_context(self) -> str:
         """
@@ -310,7 +309,7 @@ this decision was made and HOW it will help their learning:"""
         context = f"""Student Profile:
 - Name: {self.student.name}
 - Exam: {self.student.exam_type}
-- Preferred Difficulty: {preferences.get('preferred_difficulty', 'medium')}
+- Preferred Difficulty: {preferences.get("preferred_difficulty", "medium")}
 """
 
         if weak_areas:
@@ -326,10 +325,7 @@ this decision was made and HOW it will help their learning:"""
         return context
 
     def log_interaction(
-        self,
-        user_input: str,
-        agent_output: str,
-        metadata: Optional[Dict[str, Any]] = None
+        self, user_input: str, agent_output: str, metadata: Optional[Dict[str, Any]] = None
     ):
         """
         Log agent interaction for progress tracking.
@@ -346,7 +342,7 @@ this decision was made and HOW it will help their learning:"""
             "session_id": self.session.id,
             "user_input": user_input[:200],  # Truncate for storage
             "agent_output": agent_output[:200],
-            "metadata": metadata or {}
+            "metadata": metadata or {},
         }
 
         logger.info(f"[{self.agent_name}] Interaction logged: {log_entry}")
@@ -369,10 +365,7 @@ class SimpleConversationAgent(BaseAgent):
     def __init__(self, student: Student, session: Session, **kwargs):
         """Initialize simple conversation agent"""
         super().__init__(
-            agent_name="SimpleConversation",
-            student=student,
-            session=session,
-            **kwargs
+            agent_name="SimpleConversation", student=student, session=session, **kwargs
         )
 
     def get_system_prompt(self) -> str:
@@ -427,17 +420,18 @@ support and practice suggestions."""
         self.update_session_state()
 
         # Step 5: Log interaction
-        self.log_interaction(user_input, response, {
-            "context_retrieved": len(context) > 0,
-            "sources_used": len(self.state.get("last_retrieval_sources", []))
-        })
+        self.log_interaction(
+            user_input,
+            response,
+            {
+                "context_retrieved": len(context) > 0,
+                "sources_used": len(self.state.get("last_retrieval_sources", [])),
+            },
+        )
 
         return {
             "response": response,
             "agent": self.agent_name,
             "sources_used": len(self.state.get("last_retrieval_sources", [])),
-            "metadata": {
-                "total_calls": self.total_calls,
-                "session_id": self.session.id
-            }
+            "metadata": {"total_calls": self.total_calls, "session_id": self.session.id},
         }

@@ -8,8 +8,8 @@ Handles extraction and chunking of text from various document formats:
 
 Prepares documents for RAG ingestion.
 """
+
 import logging
-import os
 from typing import List, Dict, Any
 from pathlib import Path
 
@@ -43,26 +43,28 @@ class DocumentProcessor:
         """Check if PDF processing is available"""
         try:
             import PyPDF2
+
             return True
         except ImportError:
-            logger.warning("PyPDF2 not available. PDF processing disabled. Install: pip install PyPDF2")
+            logger.warning(
+                "PyPDF2 not available. PDF processing disabled. Install: pip install PyPDF2"
+            )
             return False
 
     def _check_docx_support(self) -> bool:
         """Check if DOCX processing is available"""
         try:
             import docx
+
             return True
         except ImportError:
-            logger.warning("python-docx not available. DOCX processing disabled. Install: pip install python-docx")
+            logger.warning(
+                "python-docx not available. DOCX processing disabled. Install: pip install python-docx"
+            )
             return False
 
     def process_document(
-        self,
-        file_path: str,
-        filename: str,
-        student_id: str,
-        subject: str = "General"
+        self, file_path: str, filename: str, student_id: str, subject: str = "General"
     ) -> List[Dict[str, Any]]:
         """
         Process a document and return chunked text.
@@ -80,11 +82,11 @@ class DocumentProcessor:
         file_ext = Path(filename).suffix.lower()
 
         # Extract text based on file type
-        if file_ext == '.pdf':
+        if file_ext == ".pdf":
             text = self._extract_pdf(file_path)
-        elif file_ext in ['.txt', '.md']:
+        elif file_ext in [".txt", ".md"]:
             text = self._extract_text(file_path)
-        elif file_ext in ['.docx', '.doc']:
+        elif file_ext in [".docx", ".doc"]:
             text = self._extract_docx(file_path)
         else:
             raise ValueError(f"Unsupported file type: {file_ext}")
@@ -98,16 +100,18 @@ class DocumentProcessor:
         # Add metadata to each chunk
         processed_chunks = []
         for i, chunk_text in enumerate(chunks):
-            processed_chunks.append({
-                "text": chunk_text,
-                "metadata": {
-                    "student_id": student_id,
-                    "filename": filename,
-                    "subject": subject,
-                    "chunk_index": i,
-                    "total_chunks": len(chunks)
+            processed_chunks.append(
+                {
+                    "text": chunk_text,
+                    "metadata": {
+                        "student_id": student_id,
+                        "filename": filename,
+                        "subject": subject,
+                        "chunk_index": i,
+                        "total_chunks": len(chunks),
+                    },
                 }
-            })
+            )
 
         logger.info(f"Processed {filename}: extracted {len(text)} chars -> {len(chunks)} chunks")
         return processed_chunks
@@ -121,7 +125,7 @@ class DocumentProcessor:
 
         text = []
         try:
-            with open(file_path, 'rb') as file:
+            with open(file_path, "rb") as file:
                 pdf_reader = PyPDF2.PdfReader(file)
                 for page_num, page in enumerate(pdf_reader.pages):
                     page_text = page.extract_text()
@@ -140,11 +144,11 @@ class DocumentProcessor:
         try:
             # Try UTF-8 first
             try:
-                with open(file_path, 'r', encoding='utf-8') as file:
+                with open(file_path, "r", encoding="utf-8") as file:
                     return file.read()
             except UnicodeDecodeError:
                 # Fallback to latin-1
-                with open(file_path, 'r', encoding='latin-1') as file:
+                with open(file_path, "r", encoding="latin-1") as file:
                     return file.read()
 
         except Exception as e:
@@ -154,7 +158,9 @@ class DocumentProcessor:
     def _extract_docx(self, file_path: str) -> str:
         """Extract text from DOCX file"""
         if not self._docx_available:
-            raise RuntimeError("DOCX support not available. Install python-docx: pip install python-docx")
+            raise RuntimeError(
+                "DOCX support not available. Install python-docx: pip install python-docx"
+            )
 
         import docx
 
@@ -180,7 +186,7 @@ class DocumentProcessor:
             List of text chunks
         """
         # Simple sentence splitting (can be improved with NLTK)
-        sentences = text.replace('\n', ' ').split('. ')
+        sentences = text.replace("\n", " ").split(". ")
         chunks = []
         current_chunk = []
         current_size = 0
@@ -194,7 +200,7 @@ class DocumentProcessor:
 
             # If adding this sentence exceeds chunk size, save current chunk
             if current_size + sentence_size > self.chunk_size and current_chunk:
-                chunks.append('. '.join(current_chunk) + '.')
+                chunks.append(". ".join(current_chunk) + ".")
 
                 # Keep last sentence for overlap
                 if self.chunk_overlap > 0 and current_chunk:
@@ -209,6 +215,6 @@ class DocumentProcessor:
 
         # Add remaining chunk
         if current_chunk:
-            chunks.append('. '.join(current_chunk) + '.')
+            chunks.append(". ".join(current_chunk) + ".")
 
         return chunks

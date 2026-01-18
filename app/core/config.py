@@ -2,12 +2,13 @@
 Configuration management for Agentic AI Tutor.
 Loads settings from config.yaml and environment variables.
 """
+
 import os
 import yaml
 import logging
 from pathlib import Path
 from typing import Any, Optional, Dict
-from pydantic import Field, field_validator
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Configure basic logging for this module
@@ -26,39 +27,32 @@ class Settings(BaseSettings):
     """
 
     # Sensitive data from environment variables only
-    pinecone_api_key: str = Field(
-        ...,
-        description="Pinecone API key (from .env)"
-    )
+    pinecone_api_key: str = Field(..., description="Pinecone API key (from .env)")
     default_openai_api_key: Optional[str] = Field(
         default=None,
         description="Default OpenAI API key (from .env, optional)",
-        validation_alias="OPENAI_API_KEY"
+        validation_alias="OPENAI_API_KEY",
     )
     default_gemini_api_key: Optional[str] = Field(
         default=None,
         description="Default Gemini API key (from .env, optional)",
-        validation_alias="GEMINI_API_KEY"
+        validation_alias="GEMINI_API_KEY",
     )
     secret_key: str = Field(
         default="your-secret-key-change-in-production",
-        description="Secret key for encryption (from .env)"
+        description="Secret key for encryption (from .env)",
     )
 
     # Environment selection
     environment: str = Field(
-        default="development",
-        description="Active environment (development/production)"
+        default="development", description="Active environment (development/production)"
     )
 
     # YAML configuration will be loaded into this
     _yaml_config: Dict[str, Any] = {}
 
     model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        case_sensitive=False,
-        extra="ignore"
+        env_file=".env", env_file_encoding="utf-8", case_sensitive=False, extra="ignore"
     )
 
     def __init__(self, **kwargs):
@@ -293,7 +287,9 @@ class Settings(BaseSettings):
         Configure application-wide logging based on settings.
         """
         log_level = self.log_level
-        log_format = self.get("logging.format", '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        log_format = self.get(
+            "logging.format", "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        )
 
         # Ensure logs directory exists
         os.makedirs("logs", exist_ok=True)
@@ -306,10 +302,7 @@ class Settings(BaseSettings):
         logging.basicConfig(
             level=getattr(logging, log_level),
             format=log_format,
-            handlers=[
-                logging.StreamHandler(),
-                logging.FileHandler(app_log, mode='a')
-            ]
+            handlers=[logging.StreamHandler(), logging.FileHandler(app_log, mode="a")],
         )
 
         logger.info(f"Logging configured at {log_level} level")
@@ -327,8 +320,8 @@ class Settings(BaseSettings):
             "api_keys": {
                 "openai": bool(self.default_openai_api_key),
                 "gemini": bool(self.default_gemini_api_key),
-                "pinecone": bool(self.pinecone_api_key)
-            }
+                "pinecone": bool(self.pinecone_api_key),
+            },
         }
 
     def __repr__(self) -> str:

@@ -6,32 +6,27 @@ These schemas are used by FastAPI for:
 - Response serialization
 - OpenAPI documentation generation
 """
-from app.schemas.quiz import (
-    QuizRequest,
-    QuizQuestion,
-    QuizResponse,
-    QuizSubmission,
-    QuizResult
-)
+
+from app.schemas.quiz import QuizRequest, QuizQuestion, QuizResponse, QuizSubmission, QuizResult
 from app.schemas.plan import (
     StudyPlanRequest,
     StudyPlanResponse,
     StudyPlanTopic,
     DailySchedule,
-    Milestone
+    Milestone,
 )
 from app.schemas.feedback import (
     FeedbackRequest,
     ProgressReportResponse,
     TopicPerformance,
-    OverallStats
+    OverallStats,
 )
 from app.schemas.common import (
     StudentCreate,
     StudentResponse,
     SessionCreate,
     SessionResponse,
-    MessageResponse
+    MessageResponse,
 )
 
 __all__ = [
@@ -41,24 +36,21 @@ __all__ = [
     "QuizResponse",
     "QuizSubmission",
     "QuizResult",
-
     # Plan schemas
     "StudyPlanRequest",
     "StudyPlanResponse",
     "StudyPlanTopic",
     "DailySchedule",
     "Milestone",
-
     # Feedback schemas
     "FeedbackRequest",
     "ProgressReportResponse",
     "TopicPerformance",
     "OverallStats",
-
     # Common schemas
     "StudentCreate",
     "StudentResponse",
     "SessionCreate",
     "SessionResponse",
-    "MessageResponse"
+    "MessageResponse",
 ]

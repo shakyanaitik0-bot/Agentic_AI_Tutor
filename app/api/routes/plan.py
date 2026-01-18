@@ -3,11 +3,12 @@ Study plan API endpoints.
 
 Handles study plan generation and retrieval.
 """
+
 import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session as DBSessionType
 
-from app.api.dependencies import get_db, get_student_by_id
+from app.api.dependencies import get_db
 from app.models.student import Student
 from app.models.session import Session as DBSession
 from app.agents.planner_agent import PlannerAgent
@@ -18,10 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 @router.post("/generate", response_model=StudyPlanResponse)
-def generate_study_plan(
-    request: StudyPlanRequest,
-    db: DBSessionType = Depends(get_db)
-):
+def generate_study_plan(request: StudyPlanRequest, db: DBSessionType = Depends(get_db)):
     """
     Generate a personalized study plan for a student.
 
@@ -39,22 +37,18 @@ def generate_study_plan(
     student = db.query(Student).filter(Student.id == request.student_id).first()
     if not student:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Student {request.student_id} not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Student {request.student_id} not found"
         )
 
     # Get or create session
-    active_session = db.query(DBSession).filter(
-        DBSession.student_id == student.id,
-        DBSession.is_active == True
-    ).first()
+    active_session = (
+        db.query(DBSession)
+        .filter(DBSession.student_id == student.id, DBSession.is_active == True)
+        .first()
+    )
 
     if not active_session:
-        active_session = DBSession(
-            student_id=student.id,
-            is_active=True,
-            session_type="planning"
-        )
+        active_session = DBSession(student_id=student.id, is_active=True, session_type="planning")
         db.add(active_session)
         db.commit()
         db.refresh(active_session)
@@ -63,17 +57,11 @@ def generate_study_plan(
 
     try:
         # Create planner agent
-        planner = PlannerAgent(
-            student=student,
-            session=active_session,
-            db=db
-        )
+        planner = PlannerAgent(student=student, session=active_session, db=db)
 
         # Generate plan
         user_message = f"Create a {request.timeline_days}-day study plan"
-        kwargs = {
-            "timeline_days": request.timeline_days
-        }
+        kwargs = {"timeline_days": request.timeline_days}
 
         if request.focus_topics:
             kwargs["focus_topics"] = request.focus_topics
@@ -99,7 +87,7 @@ def generate_study_plan(
             daily_schedule=plan_data.get("daily_schedule", []),
             milestones=plan_data.get("milestones", []),
             explanation=explanation,
-            total_estimated_hours=plan_data.get("total_hours", 0.0)
+            total_estimated_hours=plan_data.get("total_hours", 0.0),
         )
 
         logger.info(f"Generated plan {response.plan_id} with {response.total_topics} topics")
@@ -110,15 +98,12 @@ def generate_study_plan(
         logger.error(f"Error generating study plan: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error generating study plan: {str(e)}"
+            detail=f"Error generating study plan: {str(e)}",
         )
 
 
 @router.get("/{student_id}", response_model=StudyPlanResponse)
-def get_latest_plan(
-    student_id: str,
-    db: DBSessionType = Depends(get_db)
-):
+def get_latest_plan(student_id: str, db: DBSessionType = Depends(get_db)):
     """
     Get the latest study plan for a student.
 
@@ -137,9 +122,6 @@ def get_latest_plan(
     """
     # For now, generate a default 30-day plan
     # In production, retrieve from database
-    request = StudyPlanRequest(
-        student_id=student_id,
-        timeline_days=30
-    )
+    request = StudyPlanRequest(student_id=student_id, timeline_days=30)
 
     return generate_study_plan(request, db)

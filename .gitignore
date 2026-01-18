@@ -1,9 +1,118 @@
+# Environment and secrets
 .env
-docs/
+.env.*
+*.env
+secrets/
+credentials.json
+*.pem
+*.key
+
+# Python
 .venv/
+venv/
+env/
 __pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Package managers
 uv.lock
+pip-log.txt
+pip-delete-this-directory.txt
+
+# IDE and editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+*.sublime-workspace
+*.sublime-project
+
+# Claude Code
 .claude/
+
+# Data and logs (user-specific)
 data/
 logs/
+*.log
+*.sqlite
+*.db
+
+# Knowledge graph cache
+*.gpickle
+knowledge_graph.json
+
+# Model cache (large files)
+models/
+*.pt
+*.pth
+*.bin
+*.onnx
+sentence_transformers/
+
+# Uploaded documents (user data)
+uploads/
+documents/
+
+# Test artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+.hypothesis/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Docker
+docker-compose.override.yml
+
+# Monitoring data
+monitoring/grafana/data/
+monitoring/prometheus/data/
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+temp/
+tmp/
+
+# Documentation drafts (not final)
+docs/
 FIXES.md
+INTERVIEW_PREP.md

@@ -2,6 +2,7 @@
 Database configuration and connection management for Agentic AI Tutor.
 Uses SQLAlchemy 2.0 with SQLite backend.
 """
+
 import os
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
@@ -13,9 +14,12 @@ logger = logging.getLogger(__name__)
 # Database configuration
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./data/tutor_app.db")
 
+
 class Base(DeclarativeBase):
     """Base class for all ORM models using SQLAlchemy 2.0 declarative syntax"""
+
     pass
+
 
 # Engine configuration with connection pooling for SQLite
 engine = create_engine(
@@ -25,18 +29,14 @@ engine = create_engine(
     connect_args={
         "check_same_thread": False,  # Allow multiple threads
         "timeout": 20,  # Connection timeout
-        "isolation_level": None  # Use SQLite's default
+        "isolation_level": None,  # Use SQLite's default
     },
-    echo=os.getenv("DB_ECHO", "false").lower() == "true"  # SQL logging
+    echo=os.getenv("DB_ECHO", "false").lower() == "true",  # SQL logging
 )
 
 # Session factory using SQLAlchemy 2.0 syntax
-SessionLocal = sessionmaker(
-    bind=engine,
-    autoflush=False,
-    autocommit=False,
-    expire_on_commit=False
-)
+SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, expire_on_commit=False)
+
 
 def get_database():
     """
@@ -56,6 +56,7 @@ def get_database():
     finally:
         db.close()
 
+
 def init_database():
     """
     Initialize database by creating all tables.
@@ -74,6 +75,7 @@ def init_database():
         logger.error(f"Failed to initialize database: {e}")
         raise
 
+
 def get_db_session():
     """
     Get a database session for direct use (outside FastAPI).
@@ -83,6 +85,7 @@ def get_db_session():
         Session: SQLAlchemy database session
     """
     return SessionLocal()
+
 
 # Health check function
 def check_db_connection():

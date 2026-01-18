@@ -10,6 +10,7 @@ Generates personalized study plans based on:
 Addresses Problem Statement objective:
 "Adapt study plans based on progress, weak topics, and learning pace"
 """
+
 import logging
 from typing import Dict, Any, Optional, List
 from datetime import datetime, timedelta
@@ -18,7 +19,7 @@ from sqlalchemy.orm import Session as DBSession
 from app.agents.base_agent import BaseAgent
 from app.models.student import Student
 from app.models.session import Session
-from app.models.progress import Progress, DifficultyLevel
+from app.models.progress import Progress
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -33,7 +34,7 @@ class StudyPlan:
         exam_type: str,
         timeline_days: int,
         generated_at: datetime,
-        plan_id: Optional[str] = None
+        plan_id: Optional[str] = None,
     ):
         self.plan_id = plan_id or f"plan_{int(generated_at.timestamp() * 1000)}"
         self.student_id = student_id
@@ -53,18 +54,20 @@ class StudyPlan:
         estimated_hours: float,
         reason: str,
         urgency: str = "medium",
-        subtopics: Optional[List[str]] = None
+        subtopics: Optional[List[str]] = None,
     ):
         """Add a topic to the study plan"""
-        self.topics.append({
-            "topic": topic,
-            "priority": priority,
-            "urgency": urgency,
-            "reason": reason,
-            "estimated_hours": estimated_hours,
-            "difficulty_level": difficulty_level,
-            "subtopics": subtopics or []
-        })
+        self.topics.append(
+            {
+                "topic": topic,
+                "priority": priority,
+                "urgency": urgency,
+                "reason": reason,
+                "estimated_hours": estimated_hours,
+                "difficulty_level": difficulty_level,
+                "subtopics": subtopics or [],
+            }
+        )
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for storage/display"""
@@ -79,7 +82,7 @@ class StudyPlan:
             "milestones": self.milestones,
             "reasoning": self.reasoning,
             "total_topics": len(self.topics),
-            "total_hours": sum(t["estimated_hours"] for t in self.topics)
+            "total_hours": sum(t["estimated_hours"] for t in self.topics),
         }
 
 
@@ -95,13 +98,7 @@ class PlannerAgent(BaseAgent):
     - Provides explainable recommendations
     """
 
-    def __init__(
-        self,
-        student: Student,
-        session: Session,
-        db: DBSession,
-        **kwargs
-    ):
+    def __init__(self, student: Student, session: Session, db: DBSession, **kwargs):
         """
         Initialize Planner Agent.
 
@@ -111,12 +108,7 @@ class PlannerAgent(BaseAgent):
             db: Database session for querying Progress
             **kwargs: Additional arguments for BaseAgent
         """
-        super().__init__(
-            agent_name="PlannerAgent",
-            student=student,
-            session=session,
-            **kwargs
-        )
+        super().__init__(agent_name="PlannerAgent", student=student, session=session, **kwargs)
         self.db = db
 
         # Get planning configuration
@@ -165,9 +157,7 @@ Always explain your reasoning in a way that helps students understand the 'why' 
 
         # Step 3: Generate study plan
         study_plan = self._generate_plan(
-            timeline_days=timeline_days,
-            prioritized_topics=prioritized_topics,
-            analysis=analysis
+            timeline_days=timeline_days, prioritized_topics=prioritized_topics, analysis=analysis
         )
 
         # Step 4: Create daily schedule
@@ -191,7 +181,7 @@ Always explain your reasoning in a way that helps students understand the 'why' 
         self.log_interaction(
             user_input,
             f"Generated {timeline_days}-day study plan with {len(study_plan.topics)} topics",
-            {"topics_count": len(study_plan.topics), "timeline_days": timeline_days}
+            {"topics_count": len(study_plan.topics), "timeline_days": timeline_days},
         )
 
         return {
@@ -201,9 +191,9 @@ Always explain your reasoning in a way that helps students understand the 'why' 
                 "total_topics": len(study_plan.topics),
                 "weak_areas": len([t for t in prioritized_topics if t["priority"] == "high"]),
                 "timeline_days": timeline_days,
-                "estimated_hours": sum(t["estimated_hours"] for t in study_plan.topics)
+                "estimated_hours": sum(t["estimated_hours"] for t in study_plan.topics),
             },
-            "agent": self.agent_name
+            "agent": self.agent_name,
         }
 
     def _analyze_progress(self) -> Dict[str, Any]:
@@ -214,9 +204,9 @@ Always explain your reasoning in a way that helps students understand the 'why' 
             Dict: Analysis with weak areas, strong areas, needs review
         """
         # Query all progress records for this student
-        progress_records = self.db.query(Progress).filter(
-            Progress.student_id == self.student.id
-        ).all()
+        progress_records = (
+            self.db.query(Progress).filter(Progress.student_id == self.student.id).all()
+        )
 
         weak_areas = []
         strong_areas = []
@@ -230,10 +220,12 @@ Always explain your reasoning in a way that helps students understand the 'why' 
                 "topic": record.topic,
                 "accuracy": accuracy,
                 "attempts": record.total_attempts,
-                "difficulty": record.difficulty_level if isinstance(record.difficulty_level, str) else record.difficulty_level.value,
+                "difficulty": record.difficulty_level
+                if isinstance(record.difficulty_level, str)
+                else record.difficulty_level.value,
                 "last_practiced": record.last_practiced,
                 "needs_review": record.needs_review,
-                "mastery": record.mastery_achieved
+                "mastery": record.mastery_achieved,
             }
 
             # Classify by performance
@@ -254,13 +246,11 @@ Always explain your reasoning in a way that helps students understand the 'why' 
             "average_areas": average_areas,
             "needs_review": needs_review,
             "total_topics_practiced": len(progress_records),
-            "topics_with_mastery": sum(1 for r in progress_records if r.mastery_achieved)
+            "topics_with_mastery": sum(1 for r in progress_records if r.mastery_achieved),
         }
 
     def _prioritize_topics(
-        self,
-        analysis: Dict[str, Any],
-        focus_topics: List[str] = None
+        self, analysis: Dict[str, Any], focus_topics: List[str] = None
     ) -> List[Dict[str, Any]]:
         """
         Prioritize topics based on performance and urgency.
@@ -280,42 +270,51 @@ Always explain your reasoning in a way that helps students understand the 'why' 
             if topic_info["needs_review"]:
                 priority = "urgent"
 
-            prioritized.append({
-                **topic_info,
-                "priority": priority,
-                "priority_score": 100 - topic_info["accuracy"],  # Lower accuracy = higher priority
-                "reason": f"Weak area ({topic_info['accuracy']:.1f}% accuracy)"
-            })
+            prioritized.append(
+                {
+                    **topic_info,
+                    "priority": priority,
+                    "priority_score": 100
+                    - topic_info["accuracy"],  # Lower accuracy = higher priority
+                    "reason": f"Weak area ({topic_info['accuracy']:.1f}% accuracy)",
+                }
+            )
 
         # Medium priority: Average areas that need review
         for topic_info in analysis["needs_review"]:
             if topic_info not in prioritized:  # Avoid duplicates
-                prioritized.append({
-                    **topic_info,
-                    "priority": "medium",
-                    "priority_score": 50,
-                    "reason": "Needs review (not practiced recently)"
-                })
+                prioritized.append(
+                    {
+                        **topic_info,
+                        "priority": "medium",
+                        "priority_score": 50,
+                        "reason": "Needs review (not practiced recently)",
+                    }
+                )
 
         # Medium priority: Average areas
         for topic_info in analysis["average_areas"]:
             if topic_info not in prioritized:
-                prioritized.append({
-                    **topic_info,
-                    "priority": "medium",
-                    "priority_score": 75 - topic_info["accuracy"],
-                    "reason": f"Moderate area ({topic_info['accuracy']:.1f}% accuracy)"
-                })
+                prioritized.append(
+                    {
+                        **topic_info,
+                        "priority": "medium",
+                        "priority_score": 75 - topic_info["accuracy"],
+                        "reason": f"Moderate area ({topic_info['accuracy']:.1f}% accuracy)",
+                    }
+                )
 
         # Low priority: Strong areas (maintenance practice)
         for topic_info in analysis["strong_areas"]:
             if not topic_info["mastery"]:  # Only if not mastered
-                prioritized.append({
-                    **topic_info,
-                    "priority": "low",
-                    "priority_score": 25,
-                    "reason": f"Strong area - maintain with light practice"
-                })
+                prioritized.append(
+                    {
+                        **topic_info,
+                        "priority": "low",
+                        "priority_score": 25,
+                        "reason": f"Strong area - maintain with light practice",
+                    }
+                )
 
         # Sort by priority score (highest first)
         prioritized.sort(key=lambda x: x["priority_score"], reverse=True)
@@ -333,10 +332,7 @@ Always explain your reasoning in a way that helps students understand the 'why' 
         return prioritized
 
     def _generate_plan(
-        self,
-        timeline_days: int,
-        prioritized_topics: List[Dict[str, Any]],
-        analysis: Dict[str, Any]
+        self, timeline_days: int, prioritized_topics: List[Dict[str, Any]], analysis: Dict[str, Any]
     ) -> StudyPlan:
         """
         Generate structured study plan.
@@ -353,7 +349,7 @@ Always explain your reasoning in a way that helps students understand the 'why' 
             student_id=self.student.id,
             exam_type=self.student.exam_type,
             timeline_days=timeline_days,
-            generated_at=datetime.now()
+            generated_at=datetime.now(),
         )
 
         # Calculate available study hours
@@ -395,18 +391,14 @@ Always explain your reasoning in a way that helps students understand the 'why' 
                 difficulty_level=topic_info["difficulty"],
                 estimated_hours=estimated_hours,
                 reason=topic_info["reason"],
-                urgency=urgency
+                urgency=urgency,
             )
 
             hours_allocated += estimated_hours
 
         return plan
 
-    def _create_daily_schedule(
-        self,
-        plan: StudyPlan,
-        timeline_days: int
-    ) -> List[Dict[str, Any]]:
+    def _create_daily_schedule(self, plan: StudyPlan, timeline_days: int) -> List[Dict[str, Any]]:
         """
         Create day-by-day study schedule.
 
@@ -449,21 +441,19 @@ Always explain your reasoning in a way that helps students understand the 'why' 
 
             # Only add days that have topics (schema requires min_items=1)
             if topic_names:
-                schedule.append({
-                    "day": day,
-                    "date": (current_date + timedelta(days=day - 1)).strftime("%Y-%m-%d"),
-                    "topics": topic_names,
-                    "hours_allocated": hours_per_day,
-                    "focus_areas": focus_areas
-                })
+                schedule.append(
+                    {
+                        "day": day,
+                        "date": (current_date + timedelta(days=day - 1)).strftime("%Y-%m-%d"),
+                        "topics": topic_names,
+                        "hours_allocated": hours_per_day,
+                        "focus_areas": focus_areas,
+                    }
+                )
 
         return schedule
 
-    def _set_milestones(
-        self,
-        plan: StudyPlan,
-        timeline_days: int
-    ) -> List[Dict[str, Any]]:
+    def _set_milestones(self, plan: StudyPlan, timeline_days: int) -> List[Dict[str, Any]]:
         """
         Set achievement milestones throughout the plan.
 
@@ -489,20 +479,18 @@ Always explain your reasoning in a way that helps students understand the 'why' 
             # Get topics that should be covered by this milestone
             topics_covered = [t["topic"] for t in plan.topics[:topics_by_day]]
 
-            milestones.append({
-                "day": milestone_day,
-                "percentage": int(interval * 100),
-                "description": f"{int(interval * 100)}% plan completion - {topics_by_day} topics completed",
-                "topics_covered": topics_covered
-            })
+            milestones.append(
+                {
+                    "day": milestone_day,
+                    "percentage": int(interval * 100),
+                    "description": f"{int(interval * 100)}% plan completion - {topics_by_day} topics completed",
+                    "topics_covered": topics_covered,
+                }
+            )
 
         return milestones
 
-    def _generate_explanation(
-        self,
-        plan: StudyPlan,
-        analysis: Dict[str, Any]
-    ) -> str:
+    def _generate_explanation(self, plan: StudyPlan, analysis: Dict[str, Any]) -> str:
         """
         Generate natural language explanation of the study plan.
 
@@ -514,10 +502,10 @@ Always explain your reasoning in a way that helps students understand the 'why' 
             str: Explanation
         """
         # Build fallback explanation
-        weak_count = len(analysis['weak_areas'])
-        strong_count = len(analysis['strong_areas'])
+        weak_count = len(analysis["weak_areas"])
+        strong_count = len(analysis["strong_areas"])
 
-        fallback = f"""Your {plan.timeline_days}-day study plan focuses on {len(plan.topics)} topics, with priority given to {weak_count} weak areas that need improvement. The plan allocates {sum(t['estimated_hours'] for t in plan.topics):.1f} total hours, with more time dedicated to challenging topics. By following this structured approach and staying consistent, you'll build a strong foundation for your {self.student.exam_type} preparation."""
+        fallback = f"""Your {plan.timeline_days}-day study plan focuses on {len(plan.topics)} topics, with priority given to {weak_count} weak areas that need improvement. The plan allocates {sum(t["estimated_hours"] for t in plan.topics):.1f} total hours, with more time dedicated to challenging topics. By following this structured approach and staying consistent, you'll build a strong foundation for your {self.student.exam_type} preparation."""
 
         try:
             # Build context for LLM
@@ -529,12 +517,12 @@ Timeline: {plan.timeline_days} days
 Progress Analysis:
 - Weak areas: {weak_count} topics
 - Strong areas: {strong_count} topics
-- Topics needing review: {len(analysis['needs_review'])} topics
+- Topics needing review: {len(analysis["needs_review"])} topics
 
 Study Plan Generated:
 - Total topics: {len(plan.topics)}
-- Total estimated hours: {sum(t['estimated_hours'] for t in plan.topics):.1f}
-- High priority topics: {len([t for t in plan.topics if t['priority'] <= 3])}
+- Total estimated hours: {sum(t["estimated_hours"] for t in plan.topics):.1f}
+- High priority topics: {len([t for t in plan.topics if t["priority"] <= 3])}
 """
 
             prompt = f"""{context}
@@ -558,10 +546,7 @@ Keep it concise (3-4 sentences) and encouraging:"""
 
 
 def create_planner_agent(
-    student: Student,
-    session: Session,
-    db: DBSession,
-    **kwargs
+    student: Student, session: Session, db: DBSession, **kwargs
 ) -> PlannerAgent:
     """
     Factory function to create a Planner Agent instance.

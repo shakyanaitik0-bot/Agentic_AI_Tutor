@@ -8,9 +8,10 @@ Coordinates multi-agent workflows:
 - Response synthesis
 - Conversation state management
 """
+
 import logging
 import re
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, Optional
 from enum import Enum
 from sqlalchemy.orm import Session as DBSession
 
@@ -20,18 +21,18 @@ from app.agents.quiz_agent import QuizGeneratorAgent
 from app.agents.feedback_agent import FeedbackAgent
 from app.models.student import Student
 from app.models.session import Session
-from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
 
 class IntentType(Enum):
     """Types of user intents that can be classified"""
-    PLAN = "plan"                    # Create/update study plan
-    QUIZ = "quiz"                    # Generate quiz
-    FEEDBACK = "feedback"            # View progress/feedback
-    CONVERSATION = "conversation"    # General Q&A
-    UNKNOWN = "unknown"              # Cannot classify
+
+    PLAN = "plan"  # Create/update study plan
+    QUIZ = "quiz"  # Generate quiz
+    FEEDBACK = "feedback"  # View progress/feedback
+    CONVERSATION = "conversation"  # General Q&A
+    UNKNOWN = "unknown"  # Cannot classify
 
 
 class OrchestratorAgent(BaseAgent):
@@ -46,13 +47,7 @@ class OrchestratorAgent(BaseAgent):
     - Manage conversation state and context
     """
 
-    def __init__(
-        self,
-        student: Student,
-        session: Session,
-        db: DBSession,
-        **kwargs
-    ):
+    def __init__(self, student: Student, session: Session, db: DBSession, **kwargs):
         """
         Initialize Orchestrator Agent.
 
@@ -62,12 +57,7 @@ class OrchestratorAgent(BaseAgent):
             db: Database session
             **kwargs: Additional arguments for BaseAgent
         """
-        super().__init__(
-            agent_name="Orchestrator",
-            student=student,
-            session=session,
-            **kwargs
-        )
+        super().__init__(agent_name="Orchestrator", student=student, session=session, **kwargs)
         self.db = db
 
         # Initialize specialized agents (lazy loaded)
@@ -79,21 +69,42 @@ class OrchestratorAgent(BaseAgent):
         # Intent classification patterns
         self.intent_patterns = {
             IntentType.PLAN: [
-                r"create.*plan", r"study plan", r"schedule", r"timeline",
-                r"organize.*study", r"plan.*exam", r"prepare.*strategy"
+                r"create.*plan",
+                r"study plan",
+                r"schedule",
+                r"timeline",
+                r"organize.*study",
+                r"plan.*exam",
+                r"prepare.*strategy",
             ],
             IntentType.QUIZ: [
-                r"quiz", r"test", r"practice.*questions", r"assessment",
-                r"mcq", r"questions on", r"give me.*problems"
+                r"quiz",
+                r"test",
+                r"practice.*questions",
+                r"assessment",
+                r"mcq",
+                r"questions on",
+                r"give me.*problems",
             ],
             IntentType.FEEDBACK: [
-                r"how.*doing", r"progress", r"performance", r"feedback",
-                r"my.*score", r"weak.*areas", r"strengths", r"report"
+                r"how.*doing",
+                r"progress",
+                r"performance",
+                r"feedback",
+                r"my.*score",
+                r"weak.*areas",
+                r"strengths",
+                r"report",
             ],
             IntentType.CONVERSATION: [
-                r"explain", r"what is", r"how does", r"tell me about",
-                r"help.*understand", r"clarify", r"can you"
-            ]
+                r"explain",
+                r"what is",
+                r"how does",
+                r"tell me about",
+                r"help.*understand",
+                r"clarify",
+                r"can you",
+            ],
         }
 
         logger.info(f"Orchestrator initialized for student {student.id}")
@@ -131,10 +142,7 @@ class OrchestratorAgent(BaseAgent):
                 response = self._handle_conversation(user_input, **kwargs)
 
             # Add orchestrator metadata
-            response["orchestrator"] = {
-                "intent": intent.value,
-                "session_id": self.session.id
-            }
+            response["orchestrator"] = {"intent": intent.value, "session_id": self.session.id}
 
             return response
 
@@ -144,7 +152,7 @@ class OrchestratorAgent(BaseAgent):
                 "agent": "Orchestrator",
                 "intent": intent.value,
                 "error": str(e),
-                "message": "I encountered an error processing your request. Please try again."
+                "message": "I encountered an error processing your request. Please try again.",
             }
 
     def _classify_intent(self, user_input: str, **kwargs) -> IntentType:
@@ -207,7 +215,7 @@ Return ONLY the category name (PLAN, QUIZ, FEEDBACK, or CONVERSATION) with no ex
                 "PLAN": IntentType.PLAN,
                 "QUIZ": IntentType.QUIZ,
                 "FEEDBACK": IntentType.FEEDBACK,
-                "CONVERSATION": IntentType.CONVERSATION
+                "CONVERSATION": IntentType.CONVERSATION,
             }
 
             return intent_mapping.get(response_clean, IntentType.CONVERSATION)
@@ -232,9 +240,7 @@ Return ONLY the category name (PLAN, QUIZ, FEEDBACK, or CONVERSATION) with no ex
         # Lazy load Planner Agent
         if not self._planner_agent:
             self._planner_agent = PlannerAgent(
-                student=self.student,
-                session=self.session,
-                db=self.db
+                student=self.student, session=self.session, db=self.db
             )
 
         # Execute planner
@@ -258,9 +264,7 @@ Return ONLY the category name (PLAN, QUIZ, FEEDBACK, or CONVERSATION) with no ex
         # Lazy load Quiz Agent
         if not self._quiz_agent:
             self._quiz_agent = QuizGeneratorAgent(
-                student=self.student,
-                session=self.session,
-                db=self.db
+                student=self.student, session=self.session, db=self.db
             )
 
         # Execute quiz generator
@@ -286,9 +290,7 @@ Return ONLY the category name (PLAN, QUIZ, FEEDBACK, or CONVERSATION) with no ex
         # Lazy load Feedback Agent
         if not self._feedback_agent:
             self._feedback_agent = FeedbackAgent(
-                student=self.student,
-                session=self.session,
-                db=self.db
+                student=self.student, session=self.session, db=self.db
             )
 
         # Execute feedback agent
@@ -321,18 +323,13 @@ Return ONLY the category name (PLAN, QUIZ, FEEDBACK, or CONVERSATION) with no ex
         # Lazy load Conversation Agent
         if not self._conversation_agent:
             self._conversation_agent = SimpleConversationAgent(
-                student=self.student,
-                session=self.session
+                student=self.student, session=self.session
             )
 
         # Execute conversation agent
         return self._conversation_agent.execute(user_input, **kwargs)
 
-    def execute_workflow(
-        self,
-        workflow_type: str,
-        **kwargs
-    ) -> Dict[str, Any]:
+    def execute_workflow(self, workflow_type: str, **kwargs) -> Dict[str, Any]:
         """
         Execute a multi-agent workflow.
 
@@ -367,10 +364,7 @@ Return ONLY the category name (PLAN, QUIZ, FEEDBACK, or CONVERSATION) with no ex
             Dict: Combined quiz and feedback results
         """
         # Step 1: Generate feedback on current performance
-        feedback_response = self._handle_feedback(
-            "Show my current progress",
-            report_type="data"
-        )
+        feedback_response = self._handle_feedback("Show my current progress", report_type="data")
 
         # Step 2: Generate quiz based on weak areas
         weak_topics = feedback_response.get("data", {}).get("weak_topics", [])
@@ -385,7 +379,7 @@ Return ONLY the category name (PLAN, QUIZ, FEEDBACK, or CONVERSATION) with no ex
             "feedback": feedback_response,
             "quiz": quiz_response,
             "message": f"Here's a quiz on {kwargs.get('topic', 'your weak areas')}. "
-                      f"Your current performance will be updated after completion."
+            f"Your current performance will be updated after completion.",
         }
 
     def _workflow_assess_and_plan(self, **kwargs) -> Dict[str, Any]:
@@ -400,29 +394,21 @@ Return ONLY the category name (PLAN, QUIZ, FEEDBACK, or CONVERSATION) with no ex
         """
         # Step 1: Get comprehensive feedback
         feedback_response = self._handle_feedback(
-            "Show detailed progress report",
-            report_type="data"
+            "Show detailed progress report", report_type="data"
         )
 
         # Step 2: Create plan based on weak areas
-        plan_response = self._handle_plan(
-            "Create a study plan focusing on my weak areas",
-            **kwargs
-        )
+        plan_response = self._handle_plan("Create a study plan focusing on my weak areas", **kwargs)
 
         return {
             "workflow": "assess_and_plan",
             "feedback": feedback_response,
             "plan": plan_response,
-            "message": "I've analyzed your progress and created an updated study plan."
+            "message": "I've analyzed your progress and created an updated study plan.",
         }
 
 
-def create_orchestrator(
-    student: Student,
-    session: Session,
-    db: DBSession
-) -> OrchestratorAgent:
+def create_orchestrator(student: Student, session: Session, db: DBSession) -> OrchestratorAgent:
     """
     Factory function to create an Orchestrator Agent instance.
 
@@ -434,8 +420,4 @@ def create_orchestrator(
     Returns:
         OrchestratorAgent: Initialized orchestrator
     """
-    return OrchestratorAgent(
-        student=student,
-        session=session,
-        db=db
-    )
+    return OrchestratorAgent(student=student, session=session, db=db)

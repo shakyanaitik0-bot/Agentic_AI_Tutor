@@ -6,7 +6,12 @@ const state = {
     studentId: null,
     sessionId: null,
     studentData: null,
-    currentQuiz: null
+    currentQuiz: null,
+    // Flashcard state
+    flashcardDecks: [],
+    currentStudySession: null,
+    currentCardIndex: 0,
+    studyStartTime: null
 };
 
 // DOM Elements
@@ -43,10 +48,18 @@ const elements = {
     tabs: {
         chat: document.getElementById('tab-chat'),
         quiz: document.getElementById('tab-quiz'),
+        flashcards: document.getElementById('tab-flashcards'),
         progress: document.getElementById('tab-progress'),
         plan: document.getElementById('tab-plan'),
         documents: document.getElementById('tab-documents')
     },
+
+    // Flashcard elements
+    flashcardGenerateForm: document.getElementById('flashcard-generate-form'),
+    flashcardDecks: document.getElementById('flashcard-decks'),
+    flashcardStudyArea: document.getElementById('flashcard-study-area'),
+    flashcardCardDisplay: document.getElementById('flashcard-card-display'),
+    flashcardStats: document.getElementById('flashcard-stats'),
 
     // Document elements
     documentUploadForm: document.getElementById('document-upload-form'),
@@ -175,6 +188,9 @@ document.getElementById('btn-login').addEventListener('click', async () => {
         // Load user's documents
         await initializeDocuments();
 
+        // Load user's flashcard decks
+        await initializeFlashcards();
+
         // Show dashboard
         elements.registrationSection.classList.add('hidden');
         elements.dashboardSection.classList.remove('hidden');
@@ -220,6 +236,9 @@ elements.registrationForm.addEventListener('submit', async (e) => {
 
         // Load user's documents (will be empty for new users)
         await initializeDocuments();
+
+        // Load user's flashcard decks (will be empty for new users)
+        await initializeFlashcards();
 
         // Show dashboard
         elements.registrationSection.classList.add('hidden');
@@ -878,6 +897,452 @@ async function loadStudentDocuments() {
 // Load documents when user logs in
 async function initializeDocuments() {
     await loadStudentDocuments();
+}
+
+// ==================== FLASHCARD FUNCTIONS ====================
+
+// Generate Flashcards
+elements.flashcardGenerateForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const topic = document.getElementById('flashcard-topic').value;
+    const numCards = parseInt(document.getElementById('flashcard-count').value);
+    const difficulty = document.getElementById('flashcard-difficulty').value;
+    const useDocs = document.getElementById('flashcard-use-docs').checked;
+
+    if (!topic) {
+        alert('Please enter a topic');
+        return;
+    }
+
+    showLoading();
+
+    try {
+        const data = await apiRequest(`/flashcards/generate/${state.studentId}`, {
+            method: 'POST',
+            body: JSON.stringify({
+                topic: topic,
+                num_cards: numCards,
+                difficulty: difficulty,
+                use_documents: useDocs
+            })
+        });
+
+        hideLoading();
+
+        // Refresh decks list
+        await loadFlashcardDecks();
+
+        // Show success message
+        addChatMessage('assistant', `Created flashcard deck "${data.name}" with ${data.card_count} cards on ${data.topic}!`);
+
+        // Clear form
+        document.getElementById('flashcard-topic').value = '';
+
+    } catch (error) {
+        hideLoading();
+        alert('Failed to generate flashcards: ' + error.message);
+    }
+});
+
+// Load Flashcard Decks
+async function loadFlashcardDecks() {
+    if (!state.studentId) return;
+
+    try {
+        const decks = await apiRequest(`/flashcards/decks/${state.studentId}`);
+        state.flashcardDecks = decks;
+
+        if (decks.length === 0) {
+            elements.flashcardDecks.innerHTML = `
+                <div class="empty-state">
+                    <p>No flashcard decks yet. Generate your first deck above!</p>
+                </div>
+            `;
+            return;
+        }
+
+        let html = '<div class="topic-list">';
+        decks.forEach(deck => {
+            const masteryPercent = deck.card_count > 0
+                ? Math.round((deck.mastered_count / deck.card_count) * 100)
+                : 0;
+
+            html += `
+                <div class="topic-item flashcard-deck">
+                    <h4>🎴 ${deck.name}</h4>
+                    <p><strong>Topic:</strong> ${deck.topic}</p>
+                    <p><strong>Cards:</strong> ${deck.card_count} total | ${deck.due_count} due | ${deck.new_count} new</p>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: ${masteryPercent}%"></div>
+                    </div>
+                    <p class="mastery-text">${masteryPercent}% mastered (${deck.mastered_count}/${deck.card_count})</p>
+                    <div class="deck-actions">
+                        <button class="btn btn-primary btn-sm" onclick="startStudySession('${deck.id}')">
+                            📖 Study Now
+                        </button>
+                        <button class="btn btn-secondary btn-sm" onclick="deleteDeck('${deck.id}')">
+                            🗑️ Delete
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+        html += '</div>';
+
+        elements.flashcardDecks.innerHTML = html;
+
+        // Also load stats
+        await loadFlashcardStats();
+
+    } catch (error) {
+        console.error('Error loading flashcard decks:', error);
+    }
+}
+
+// Start Study Session
+async function startStudySession(deckId) {
+    showLoading();
+
+    try {
+        const session = await apiRequest(`/flashcards/study/${deckId}?max_cards=20&include_new=true`);
+        state.currentStudySession = session;
+        state.currentCardIndex = 0;
+
+        hideLoading();
+
+        if (session.cards.length === 0) {
+            alert('No cards due for review! Check back later.');
+            return;
+        }
+
+        // Show study area
+        elements.flashcardStudyArea.classList.remove('hidden');
+
+        // Display first card
+        displayCurrentCard();
+
+    } catch (error) {
+        hideLoading();
+        alert('Failed to start study session: ' + error.message);
+    }
+}
+
+// Display Current Flashcard
+function displayCurrentCard() {
+    const session = state.currentStudySession;
+    if (!session || state.currentCardIndex >= session.cards.length) {
+        // Session complete
+        endStudySession();
+        return;
+    }
+
+    const card = session.cards[state.currentCardIndex];
+    state.studyStartTime = Date.now();
+
+    let html = `
+        <div class="flashcard-container">
+            <div class="flashcard-progress">
+                Card ${state.currentCardIndex + 1} of ${session.cards.length}
+                | Due: ${session.total_due} | New: ${session.total_new}
+            </div>
+
+            <div class="flashcard" id="current-flashcard">
+                <div class="flashcard-front">
+                    <span class="card-type-badge ${card.type}">${card.type.toUpperCase()}</span>
+                    <span class="card-difficulty-badge ${card.difficulty}">${card.difficulty}</span>
+                    <div class="flashcard-content">
+                        <p>${card.front}</p>
+                    </div>
+                    ${card.hints && card.hints.length > 0 ? `
+                        <div class="flashcard-hints">
+                            <button class="btn btn-sm" onclick="showHints()">💡 Show Hint</button>
+                            <div id="hints-content" class="hidden">
+                                ${card.hints.map(h => `<p class="hint">${h}</p>`).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+
+            <button class="btn btn-primary btn-lg" onclick="revealAnswer('${card.id}')">
+                👁️ Reveal Answer
+            </button>
+        </div>
+    `;
+
+    elements.flashcardCardDisplay.innerHTML = html;
+}
+
+// Show Hints
+function showHints() {
+    const hintsContent = document.getElementById('hints-content');
+    if (hintsContent) {
+        hintsContent.classList.toggle('hidden');
+    }
+}
+
+// Reveal Answer
+async function revealAnswer(cardId) {
+    showLoading();
+
+    try {
+        const cardData = await apiRequest(`/flashcards/card/${cardId}/reveal`);
+        hideLoading();
+
+        const session = state.currentStudySession;
+        const card = session.cards[state.currentCardIndex];
+
+        let html = `
+            <div class="flashcard-container">
+                <div class="flashcard-progress">
+                    Card ${state.currentCardIndex + 1} of ${session.cards.length}
+                </div>
+
+                <div class="flashcard revealed">
+                    <div class="flashcard-front">
+                        <span class="card-type-badge ${card.type}">${card.type.toUpperCase()}</span>
+                        <div class="flashcard-content">
+                            <p><strong>Q:</strong> ${cardData.front}</p>
+                        </div>
+                    </div>
+                    <div class="flashcard-back">
+                        <div class="flashcard-content">
+                            <p><strong>A:</strong> ${cardData.back}</p>
+                        </div>
+                        ${cardData.source ? `
+                            <div class="flashcard-source">
+                                <small>📚 Source: ${cardData.source}</small>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+
+                <div class="review-buttons">
+                    <p>How well did you know this?</p>
+                    <div class="quality-buttons">
+                        <button class="btn btn-quality q0" onclick="submitReview('${cardId}', 0)">
+                            😵 Blackout<br><small>0</small>
+                        </button>
+                        <button class="btn btn-quality q1" onclick="submitReview('${cardId}', 1)">
+                            😕 Wrong<br><small>1</small>
+                        </button>
+                        <button class="btn btn-quality q2" onclick="submitReview('${cardId}', 2)">
+                            🤔 Hard<br><small>2</small>
+                        </button>
+                        <button class="btn btn-quality q3" onclick="submitReview('${cardId}', 3)">
+                            😐 Good<br><small>3</small>
+                        </button>
+                        <button class="btn btn-quality q4" onclick="submitReview('${cardId}', 4)">
+                            🙂 Easy<br><small>4</small>
+                        </button>
+                        <button class="btn btn-quality q5" onclick="submitReview('${cardId}', 5)">
+                            😄 Perfect<br><small>5</small>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        elements.flashcardCardDisplay.innerHTML = html;
+
+    } catch (error) {
+        hideLoading();
+        alert('Failed to reveal answer: ' + error.message);
+    }
+}
+
+// Submit Review
+async function submitReview(cardId, quality) {
+    const responseTime = Date.now() - state.studyStartTime;
+
+    showLoading();
+
+    try {
+        await apiRequest('/flashcards/review', {
+            method: 'POST',
+            body: JSON.stringify({
+                card_id: cardId,
+                quality: quality,
+                response_time_ms: responseTime
+            })
+        });
+
+        hideLoading();
+
+        // Move to next card
+        state.currentCardIndex++;
+        displayCurrentCard();
+
+    } catch (error) {
+        hideLoading();
+        alert('Failed to submit review: ' + error.message);
+    }
+}
+
+// End Study Session
+function endStudySession() {
+    const session = state.currentStudySession;
+
+    elements.flashcardCardDisplay.innerHTML = `
+        <div class="study-complete">
+            <h3>🎉 Study Session Complete!</h3>
+            <p>You reviewed ${session.cards.length} cards from "${session.deck_name}"</p>
+            <button class="btn btn-primary" onclick="closeStudySession()">Done</button>
+        </div>
+    `;
+
+    // Refresh decks to show updated stats
+    loadFlashcardDecks();
+}
+
+// Close Study Session
+function closeStudySession() {
+    state.currentStudySession = null;
+    state.currentCardIndex = 0;
+    elements.flashcardStudyArea.classList.add('hidden');
+    elements.flashcardCardDisplay.innerHTML = '';
+}
+
+// Delete Deck
+async function deleteDeck(deckId) {
+    if (!confirm('Are you sure you want to delete this deck? This cannot be undone.')) {
+        return;
+    }
+
+    showLoading();
+
+    try {
+        await apiRequest(`/flashcards/deck/${deckId}`, {
+            method: 'DELETE'
+        });
+
+        hideLoading();
+
+        // Refresh decks
+        await loadFlashcardDecks();
+
+    } catch (error) {
+        hideLoading();
+        alert('Failed to delete deck: ' + error.message);
+    }
+}
+
+// Load Flashcard Stats
+async function loadFlashcardStats() {
+    if (!state.studentId) return;
+
+    try {
+        const stats = await apiRequest(`/flashcards/stats/${state.studentId}`);
+
+        if (stats.total_cards === 0) {
+            elements.flashcardStats.innerHTML = `
+                <div class="empty-state">
+                    <p>Start studying to see your statistics!</p>
+                </div>
+            `;
+            return;
+        }
+
+        elements.flashcardStats.innerHTML = `
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h4>Total Decks</h4>
+                    <div class="value">${stats.total_decks}</div>
+                </div>
+                <div class="stat-card">
+                    <h4>Total Cards</h4>
+                    <div class="value">${stats.total_cards}</div>
+                </div>
+                <div class="stat-card">
+                    <h4>Mastered</h4>
+                    <div class="value">${stats.total_mastered}</div>
+                </div>
+                <div class="stat-card">
+                    <h4>Due Now</h4>
+                    <div class="value">${stats.total_due}</div>
+                </div>
+                <div class="stat-card">
+                    <h4>Mastery Rate</h4>
+                    <div class="value">${stats.mastery_percentage}%</div>
+                </div>
+                <div class="stat-card">
+                    <h4>Reviews This Week</h4>
+                    <div class="value">${stats.reviews_this_week}</div>
+                </div>
+                <div class="stat-card">
+                    <h4>Accuracy This Week</h4>
+                    <div class="value">${stats.accuracy_this_week}%</div>
+                </div>
+            </div>
+        `;
+
+    } catch (error) {
+        console.error('Error loading flashcard stats:', error);
+    }
+}
+
+// Make flashcard functions available globally
+window.startStudySession = startStudySession;
+window.revealAnswer = revealAnswer;
+window.submitReview = submitReview;
+window.closeStudySession = closeStudySession;
+window.deleteDeck = deleteDeck;
+window.showHints = showHints;
+
+// ==================== CITATION DISPLAY IN CHAT ====================
+
+// Enhanced chat message function with citation support
+function addChatMessageWithCitations(role, content, citations = []) {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${role}-message`;
+
+    const strongTag = document.createElement('strong');
+    strongTag.textContent = role === 'user' ? 'You:' : 'AI Tutor:';
+    messageDiv.appendChild(strongTag);
+
+    // Add main content
+    const contentSpan = document.createElement('span');
+    contentSpan.innerHTML = ' ' + content;
+    messageDiv.appendChild(contentSpan);
+
+    // Add citations if present
+    if (citations && citations.length > 0) {
+        const citationsDiv = document.createElement('div');
+        citationsDiv.className = 'citations-container';
+        citationsDiv.innerHTML = '<strong>Sources:</strong>';
+
+        const citationsList = document.createElement('ul');
+        citationsList.className = 'citations-list';
+
+        citations.forEach((citation, index) => {
+            const li = document.createElement('li');
+            li.className = `citation-item source-${citation.source_type || 'unknown'}`;
+
+            let sourceIcon = '📄';
+            if (citation.source_type === 'DOCUMENT') sourceIcon = '📚';
+            else if (citation.source_type === 'WEB') sourceIcon = '🌐';
+            else if (citation.source_type === 'KNOWLEDGE_GRAPH') sourceIcon = '🔗';
+
+            li.innerHTML = `
+                <span class="citation-icon">${sourceIcon}</span>
+                <span class="citation-title">${citation.title || citation.source || 'Source ' + (index + 1)}</span>
+                ${citation.relevance_score ? `<span class="citation-score">(${Math.round(citation.relevance_score * 100)}% relevant)</span>` : ''}
+            `;
+            citationsList.appendChild(li);
+        });
+
+        citationsDiv.appendChild(citationsList);
+        messageDiv.appendChild(citationsDiv);
+    }
+
+    elements.chatMessages.appendChild(messageDiv);
+    elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+}
+
+// Initialize flashcards when user logs in
+async function initializeFlashcards() {
+    await loadFlashcardDecks();
 }
 
 // Initialize

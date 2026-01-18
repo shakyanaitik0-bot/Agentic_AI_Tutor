@@ -2,11 +2,12 @@
 Progress tracking model for Agentic AI Tutor.
 Handles learning analytics, performance tracking, and adaptive difficulty assessment.
 """
-import uuid
-from datetime import datetime, timedelta
-from typing import Optional, Dict, List, Tuple
-from sqlalchemy import Column, String, Integer, Float, DateTime, Boolean, ForeignKey, JSON, func
+
+from datetime import datetime
+from typing import Optional, Dict, List
+from sqlalchemy import Column, String, Integer, Float, DateTime, Boolean, ForeignKey, JSON
 from sqlalchemy.orm import relationship
+from sqlalchemy.orm.attributes import flag_modified
 from enum import Enum
 import logging
 
@@ -14,17 +15,22 @@ from app.core.database import Base
 
 logger = logging.getLogger(__name__)
 
+
 class DifficultyLevel(Enum):
     """Enum for difficulty levels used in adaptive learning"""
+
     EASY = "easy"
     MEDIUM = "medium"
     HARD = "hard"
 
+
 class StrengthLevel(Enum):
     """Enum for student strength levels in topics"""
-    WEAK = "weak"          # < 60% accuracy
-    AVERAGE = "average"    # 60-80% accuracy
-    STRONG = "strong"      # > 80% accuracy
+
+    WEAK = "weak"  # < 60% accuracy
+    AVERAGE = "average"  # 60-80% accuracy
+    STRONG = "strong"  # > 80% accuracy
+
 
 class Progress(Base):
     """
@@ -36,6 +42,7 @@ class Progress(Base):
     - Track learning gains over time
     - Identify topics needing review
     """
+
     __tablename__ = "progress"
 
     # Primary identification
@@ -64,10 +71,14 @@ class Progress(Base):
     # Adaptive learning state
     current_strength_level = Column(String(20), default=StrengthLevel.WEAK.value, nullable=False)
     needs_review = Column(Boolean, default=False, nullable=False, index=True)
-    mastery_achieved = Column(Boolean, default=False, nullable=False)  # 85%+ accuracy, recent practice
+    mastery_achieved = Column(
+        Boolean, default=False, nullable=False
+    )  # 85%+ accuracy, recent practice
 
     # Detailed analytics (JSON for flexibility)
-    question_types_performance = Column(JSON, nullable=True, default=dict)  # MCQ vs. descriptive etc.
+    question_types_performance = Column(
+        JSON, nullable=True, default=dict
+    )  # MCQ vs. descriptive etc.
     common_mistakes = Column(JSON, nullable=True, default=list)  # Patterns in wrong answers
     learning_velocity = Column(Float, nullable=True)  # Rate of improvement
 
@@ -83,7 +94,7 @@ class Progress(Base):
             self.question_types_performance = {
                 "multiple_choice": {"attempts": 0, "correct": 0},
                 "descriptive": {"attempts": 0, "correct": 0},
-                "numerical": {"attempts": 0, "correct": 0}
+                "numerical": {"attempts": 0, "correct": 0},
             }
         if not self.common_mistakes:
             self.common_mistakes = []
@@ -159,7 +170,7 @@ class Progress(Base):
         is_correct: bool,
         time_spent_minutes: float = 0.0,
         question_type: str = "multiple_choice",
-        mistake_pattern: Optional[str] = None
+        mistake_pattern: Optional[str] = None,
     ) -> None:
         """
         Record a new attempt on this topic.
@@ -195,21 +206,26 @@ class Progress(Base):
             self.consecutive_correct = 0
             if mistake_pattern and mistake_pattern not in self.common_mistakes:
                 if len(self.common_mistakes) < 10:  # Limit stored mistakes
-                    self.common_mistakes.append(mistake_pattern)
+                    # Use list concatenation to ensure SQLAlchemy detects the change
+                    self.common_mistakes = self.common_mistakes + [mistake_pattern]
+                    flag_modified(self, "common_mistakes")
 
         # Update question type performance
         if question_type in self.question_types_performance:
             self.question_types_performance[question_type]["attempts"] += 1
             if is_correct:
                 self.question_types_performance[question_type]["correct"] += 1
+            flag_modified(self, "question_types_performance")
 
         # Recalculate derived properties
         self._update_strength_level()
         self._update_mastery_status()
         self._update_review_status()
 
-        logger.debug(f"Recorded attempt for student {self.student_id}, topic {self.topic}: "
-                    f"{'correct' if is_correct else 'incorrect'}, accuracy now {self.accuracy_percentage:.1f}%")
+        logger.debug(
+            f"Recorded attempt for student {self.student_id}, topic {self.topic}: "
+            f"{'correct' if is_correct else 'incorrect'}, accuracy now {self.accuracy_percentage:.1f}%"
+        )
 
     def _update_strength_level(self) -> None:
         """Update the current strength level based on accuracy"""
@@ -226,18 +242,16 @@ class Progress(Base):
         """Update mastery status based on accuracy and recent practice"""
         # Mastery criteria: 85%+ accuracy with at least 10 attempts and practiced recently
         self.mastery_achieved = (
-            self.accuracy_percentage >= 85 and
-            self.total_attempts >= 10 and
-            self.days_since_last_practice <= 3
+            self.accuracy_percentage >= 85
+            and self.total_attempts >= 10
+            and self.days_since_last_practice <= 3
         )
 
     def _update_review_status(self) -> None:
         """Update whether topic needs review"""
         # Needs review if: low accuracy, declining performance, or stale
         self.needs_review = (
-            self.accuracy_percentage < 70 or
-            self.is_stale or
-            self.consecutive_correct == 0
+            self.accuracy_percentage < 70 or self.is_stale or self.consecutive_correct == 0
         )
 
     def get_recommended_difficulty(self) -> DifficultyLevel:
@@ -285,7 +299,7 @@ class Progress(Base):
             "recommended_next_difficulty": self.get_recommended_difficulty().value,
             "improvement_rate": round(self.improvement_rate, 2),
             "question_types_performance": self.question_types_performance,
-            "common_mistakes": self.common_mistakes[:3]  # Top 3 mistakes
+            "common_mistakes": self.common_mistakes[:3],  # Top 3 mistakes
         }
 
     @classmethod
@@ -295,8 +309,8 @@ class Progress(Base):
         student_id: str,
         topic: str,
         difficulty_level: str = DifficultyLevel.MEDIUM.value,
-        subtopic: Optional[str] = None
-    ) -> 'Progress':
+        subtopic: Optional[str] = None,
+    ) -> "Progress":
         """
         Get existing progress record or create new one.
 
@@ -311,22 +325,23 @@ class Progress(Base):
             Progress: Existing or newly created progress record
         """
         # Try to find existing record
-        existing = session.query(cls).filter_by(
-            student_id=student_id,
-            topic=topic,
-            difficulty_level=difficulty_level,
-            subtopic=subtopic
-        ).first()
+        existing = (
+            session.query(cls)
+            .filter_by(
+                student_id=student_id,
+                topic=topic,
+                difficulty_level=difficulty_level,
+                subtopic=subtopic,
+            )
+            .first()
+        )
 
         if existing:
             return existing
 
         # Create new record
         new_progress = cls(
-            student_id=student_id,
-            topic=topic,
-            difficulty_level=difficulty_level,
-            subtopic=subtopic
+            student_id=student_id, topic=topic, difficulty_level=difficulty_level, subtopic=subtopic
         )
         session.add(new_progress)
         session.flush()  # Get ID without committing
@@ -357,7 +372,7 @@ class Progress(Base):
                 "needs_review": [],
                 "overall_accuracy": 0.0,
                 "total_time_spent": 0.0,
-                "recommendation": "Start with a basic assessment to identify your current level."
+                "recommendation": "Start with a basic assessment to identify your current level.",
             }
 
         # Aggregate metrics
@@ -368,8 +383,12 @@ class Progress(Base):
         overall_accuracy = (total_correct / total_attempts * 100) if total_attempts > 0 else 0
 
         # Categorize topics
-        weak_areas = [r.topic for r in records if r.current_strength_level == StrengthLevel.WEAK.value]
-        strong_areas = [r.topic for r in records if r.current_strength_level == StrengthLevel.STRONG.value]
+        weak_areas = [
+            r.topic for r in records if r.current_strength_level == StrengthLevel.WEAK.value
+        ]
+        strong_areas = [
+            r.topic for r in records if r.current_strength_level == StrengthLevel.STRONG.value
+        ]
         needs_review = [r.topic for r in records if r.needs_review]
 
         # Generate recommendation
@@ -383,11 +402,13 @@ class Progress(Base):
             "overall_accuracy": round(overall_accuracy, 1),
             "total_time_spent_hours": round(total_time / 60, 1),
             "mastered_topics": len([r for r in records if r.mastery_achieved]),
-            "recommendation": recommendation
+            "recommendation": recommendation,
         }
 
     @staticmethod
-    def _generate_recommendation(weak_areas: List[str], strong_areas: List[str], needs_review: List[str]) -> str:
+    def _generate_recommendation(
+        weak_areas: List[str], strong_areas: List[str], needs_review: List[str]
+    ) -> str:
         """Generate learning recommendation based on progress"""
         if not weak_areas and not needs_review:
             return "Excellent progress! Consider tackling more advanced topics or helping others."

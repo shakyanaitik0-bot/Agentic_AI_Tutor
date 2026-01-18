@@ -2,6 +2,7 @@
 Session and Message models for Agentic AI Tutor.
 Handles stateful conversations and chat history storage.
 """
+
 import uuid
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Any
@@ -13,6 +14,7 @@ from app.core.database import Base
 
 logger = logging.getLogger(__name__)
 
+
 class Session(Base):
     """
     Session model representing a conversation session between student and AI tutor.
@@ -20,6 +22,7 @@ class Session(Base):
     Sessions maintain context across multiple interactions and enable stateful conversations
     for better personalization and learning continuity.
     """
+
     __tablename__ = "sessions"
 
     # Primary identification
@@ -36,7 +39,9 @@ class Session(Base):
     last_interaction = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     # Session metadata and context
-    session_type = Column(String(50), default="general", nullable=False)  # general, quiz, review, etc.
+    session_type = Column(
+        String(50), default="general", nullable=False
+    )  # general, quiz, review, etc.
     current_topic = Column(String(100), nullable=True)  # Current learning topic
     session_goals = Column(JSON, nullable=True, default=list)  # List of learning objectives
 
@@ -50,8 +55,12 @@ class Session(Base):
     topics_covered = Column(JSON, nullable=True, default=list)  # Topics discussed in this session
 
     # Relationships
-    messages = relationship("Message", back_populates="session", cascade="all, delete-orphan",
-                          order_by="Message.timestamp")
+    messages = relationship(
+        "Message",
+        back_populates="session",
+        cascade="all, delete-orphan",
+        order_by="Message.timestamp",
+    )
 
     def __init__(self, **kwargs):
         """Initialize session with default values"""
@@ -64,7 +73,7 @@ class Session(Base):
                 "last_agent_used": None,
                 "workflow_step": "initial",
                 "context_summary": None,
-                "pending_actions": []
+                "pending_actions": [],
             }
         if not self.topics_covered:
             self.topics_covered = []
@@ -152,7 +161,7 @@ class Session(Base):
         self.agent_state.update(state_updates)
         logger.debug(f"Updated agent state for session {self.id}")
 
-    def get_recent_messages(self, limit: int = 10) -> List['Message']:
+    def get_recent_messages(self, limit: int = 10) -> List["Message"]:
         """
         Get recent messages from this session.
 
@@ -179,12 +188,14 @@ class Session(Base):
 
         context = []
         for message in recent_messages:
-            context.append({
-                "role": message.role,
-                "content": message.content,
-                "timestamp": message.timestamp.isoformat(),
-                "metadata": message.message_metadata or {}
-            })
+            context.append(
+                {
+                    "role": message.role,
+                    "content": message.content,
+                    "timestamp": message.timestamp.isoformat(),
+                    "metadata": message.message_metadata or {},
+                }
+            )
 
         return context
 
@@ -202,6 +213,7 @@ class Message(Base):
 
     Stores both user questions and AI tutor responses with metadata for analysis.
     """
+
     __tablename__ = "messages"
 
     # Primary identification
@@ -217,7 +229,9 @@ class Message(Base):
     timestamp = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
 
     # Message classification and context
-    message_type = Column(String(50), default="chat", nullable=False)  # chat, quiz, explanation, etc.
+    message_type = Column(
+        String(50), default="chat", nullable=False
+    )  # chat, quiz, explanation, etc.
     topic = Column(String(100), nullable=True, index=True)  # Related topic if identified
 
     # Additional metadata (JSON for flexibility)
@@ -237,8 +251,8 @@ class Message(Base):
         content: str,
         message_type: str = "chat",
         topic: Optional[str] = None,
-        message_metadata: Optional[Dict[str, Any]] = None
-    ) -> 'Message':
+        message_metadata: Optional[Dict[str, Any]] = None,
+    ) -> "Message":
         """
         Create a new user message.
 
@@ -258,7 +272,7 @@ class Message(Base):
             content=content,
             message_type=message_type,
             topic=topic,
-            message_metadata=message_metadata or {}
+            message_metadata=message_metadata or {},
         )
 
     @classmethod
@@ -269,8 +283,8 @@ class Message(Base):
         message_type: str = "response",
         topic: Optional[str] = None,
         agent_info: Optional[Dict[str, Any]] = None,
-        message_metadata: Optional[Dict[str, Any]] = None
-    ) -> 'Message':
+        message_metadata: Optional[Dict[str, Any]] = None,
+    ) -> "Message":
         """
         Create a new assistant message.
 
@@ -295,7 +309,7 @@ class Message(Base):
             content=content,
             message_type=message_type,
             topic=topic,
-            message_metadata=message_metadata
+            message_metadata=message_metadata,
         )
 
     def add_agent_metadata(self, agent_name: str, agent_data: Dict[str, Any]) -> None:
@@ -333,12 +347,11 @@ class Message(Base):
         if not self.content:
             return False
 
-        question_indicators = ['?', 'how', 'what', 'why', 'when', 'where', 'who', 'explain', 'help']
+        question_indicators = ["?", "how", "what", "why", "when", "where", "who", "explain", "help"]
         content_lower = self.content.lower()
 
-        return (
-            self.content.strip().endswith('?') or
-            any(indicator in content_lower for indicator in question_indicators)
+        return self.content.strip().endswith("?") or any(
+            indicator in content_lower for indicator in question_indicators
         )
 
     def __repr__(self):
