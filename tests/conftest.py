@@ -23,6 +23,7 @@ from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import StaticPool
 
 from app.main import app
+from app.api.dependencies import get_db
 from app.core.database import Base, get_database
 from app.models.student import Student
 from app.models.session import Session as DBSession
@@ -76,6 +77,10 @@ def client(test_db: Session) -> Generator[TestClient, None, None]:
         finally:
             pass
 
+    # Routes depend on get_db, which calls get_database() directly rather than
+    # through Depends, so overriding get_database alone never takes effect and
+    # the tests fall through to the real SQLite file. Override both.
+    app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_database] = override_get_db
 
     with TestClient(app) as c:

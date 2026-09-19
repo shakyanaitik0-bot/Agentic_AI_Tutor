@@ -10,7 +10,13 @@ from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_db, get_student_by_id
 from app.models.student import Student
-from app.schemas.common import StudentCreate, StudentResponse, StudentLogin
+from app.core.security import create_tokens
+from app.schemas.common import (
+    StudentCreate,
+    StudentResponse,
+    StudentLogin,
+    LoginResponse,
+)
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -67,7 +73,7 @@ def register_student(student_data: StudentCreate, db: Session = Depends(get_db))
     return student
 
 
-@router.post("/login", response_model=StudentResponse)
+@router.post("/login", response_model=LoginResponse)
 def login_student(login_data: StudentLogin, db: Session = Depends(get_db)):
     """
     Student login with email and password.
@@ -77,7 +83,7 @@ def login_student(login_data: StudentLogin, db: Session = Depends(get_db)):
         db: Database session
 
     Returns:
-        StudentResponse: Student profile
+        LoginResponse: Student profile plus JWT credentials
 
     Raises:
         HTTPException: 401 if credentials invalid
@@ -100,8 +106,18 @@ def login_student(login_data: StudentLogin, db: Session = Depends(get_db)):
     student.update_last_active()
     db.commit()
 
+    # Issue JWT credentials so the client can authenticate later requests
+    tokens = create_tokens(student.id, student.email)
+
     logger.info(f"Student login successful: {student.name} ({student.id})")
-    return student
+
+    return LoginResponse(
+        **StudentResponse.model_validate(student).model_dump(),
+        access_token=tokens.access_token,
+        refresh_token=tokens.refresh_token,
+        token_type=tokens.token_type,
+        expires_in=tokens.expires_in,
+    )
 
 
 @router.get("/{student_id}", response_model=StudentResponse)
