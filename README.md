@@ -138,10 +138,35 @@ uv run python scripts/init_db.py
 uv run uvicorn app.main:app --reload
 
 # Open browser
-# http://localhost:8000 (API)
+# http://localhost:8000/app/ (study console)
 # http://localhost:8000/docs (Swagger UI)
-# frontend/index.html (Web UI)
+# http://localhost:8000/health (health check)
 ```
+
+### The study console
+
+The browser UI is served by the API itself at `/app/`, so it talks to a
+same-origin `/api` and needs no build step, no package manager and no
+separate server. It is plain ES modules; editing a file and reloading is
+the whole development loop.
+
+The layout is a rail of six workspaces — Today, Quiz, Cards, Plan,
+Progress, Library — with the tutor docked permanently alongside them,
+so asking a question never costs you the screen you were on. On a phone
+the rail becomes a bottom bar and the tutor a sheet.
+
+| Key | Does |
+| --- | --- |
+| `Cmd`/`Ctrl` + `K` | Command palette |
+| `/` | Jump to the tutor |
+| `1`–`4` | Answer the quiz question on screen |
+| `Enter` / `←` `→` | Move through quiz questions |
+| `Space` | Flip a flashcard |
+| `0`–`5` | Grade the flipped card (SM-2) |
+| `Esc` | Leave a card review |
+
+To point the console at an API on another host, open it with
+`?api=https://host/api` once; the choice is remembered.
 
 ### Docker Deployment
 
@@ -260,7 +285,7 @@ Agentic_AI_Tutor/
 │       └── routes/
 │           ├── flashcards.py      # Flashcard endpoints
 │           └── ...
-├── frontend/                      # Web UI (HTML/CSS/JS)
+├── frontend/                      # Study console (ES modules, no build step)
 ├── tests/                         # Pytest tests (51 passing)
 ├── docs/                          # Documentation
 │   ├── PROJECT_OVERVIEW.md        # Executive summary
@@ -344,7 +369,7 @@ uv run pytest tests/test_models.py -v
 - [x] Citation support
 - [x] Flashcard generation
 - [ ] WebSocket real-time chat
-- [ ] Mobile responsive design
+- [x] Mobile responsive design
 - [ ] PostgreSQL for scale
 - [ ] Redis caching layer
 - [ ] Email notifications
