@@ -3,6 +3,7 @@ LLM Service for Agentic AI Tutor.
 Unified interface for OpenAI and Gemini APIs with automatic retry and error handling.
 """
 
+import asyncio
 import time
 import logging
 from typing import List, Dict, Optional, Any, Literal
@@ -281,6 +282,37 @@ class LLMService:
 
         return gemini_messages
 
+    async def generate(
+        self,
+        prompt: str,
+        system_prompt: Optional[str] = None,
+        temperature: Optional[float] = None,
+        max_tokens: Optional[int] = None,
+    ) -> str:
+        """
+        Generate a completion for a single prompt, awaitable from async code.
+
+        The provider SDKs are synchronous, so the call is handed to a worker
+        thread; awaiting it directly would block the event loop for the whole
+        round trip.
+
+        Args:
+            prompt: The user prompt
+            system_prompt: Optional system prompt
+            temperature: Sampling temperature. Defaults to config.
+            max_tokens: Maximum tokens to generate. Defaults to config.
+
+        Returns:
+            str: Generated response text
+        """
+        return await asyncio.to_thread(
+            self.chat_completion,
+            messages=[{"role": "user", "content": prompt}],
+            system_prompt=system_prompt,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
+
     def count_tokens(self, text: str) -> int:
         """
         Count tokens in text.
@@ -400,3 +432,23 @@ def create_llm_service(
         LLMService: Configured LLM service instance
     """
     return LLMService(provider=provider, api_key=api_key, model=model)
+
+
+# Singleton instance
+_llm_service: Optional[LLMService] = None
+
+
+def get_llm_service() -> LLMService:
+    """
+    Get or create the shared LLM service.
+
+    Use this instead of constructing LLMService per call: each instance builds
+    a provider client, and agents only ever need the configured default.
+
+    Returns:
+        LLMService: Shared LLM service instance
+    """
+    global _llm_service
+    if _llm_service is None:
+        _llm_service = LLMService()
+    return _llm_service
