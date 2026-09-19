@@ -25,12 +25,16 @@ class TestHealthEndpoints:
         assert "version" in data
 
     def test_root_endpoint(self, client: TestClient):
-        """Test root endpoint returns API info."""
-        response = client.get("/")
+        """Root sends browsers to the bundled study console."""
+        response = client.get("/", follow_redirects=False)
+        assert response.status_code in (302, 307)
+        assert response.headers["location"] == "/app/"
+
+    def test_console_is_served(self, client: TestClient):
+        """The console itself is served from the API, same origin as /api."""
+        response = client.get("/app/")
         assert response.status_code == 200
-        data = response.json()
-        assert "message" in data
-        assert "docs" in data
+        assert "text/html" in response.headers["content-type"]
 
 
 class TestStudentRegistration:
