@@ -121,6 +121,9 @@ def login_student(login_data: StudentLogin, db: Session = Depends(get_db)):
     student.update_last_active()
     db.commit()
 
+    # Issue JWT credentials so the client can authenticate later requests
+    tokens = create_tokens(student.id, student.email)
+
     logger.info(f"Student login successful: {student.name} ({student.id})")
 
     tokens = create_tokens(student.id, student.email)

@@ -65,6 +65,7 @@ knowledge_graph.json
 
 # Model cache (large files)
 models/
+!app/models/
 *.pt
 *.pth
 *.bin
