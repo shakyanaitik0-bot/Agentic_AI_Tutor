@@ -78,6 +78,24 @@ class StudentResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class LoginResponse(StudentResponse):
+    """
+    Response schema for a successful login.
+
+    Extends the student profile with JWT credentials so clients can
+    authenticate subsequent requests.
+    """
+
+    access_token: str = Field(..., description="JWT access token")
+    refresh_token: str = Field(..., description="JWT refresh token")
+    token_type: str = Field(
+        default="bearer", description="Token scheme for the Authorization header"
+    )
+    expires_in: int = Field(..., description="Access token lifetime in seconds")
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class SessionCreate(BaseModel):
     """Request schema for creating a new session"""
 
