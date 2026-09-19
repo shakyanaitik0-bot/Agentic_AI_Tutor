@@ -37,10 +37,10 @@ export const API_BASE = resolveBase();
 export const API_ROOT = API_BASE.replace(/\/api$/, '') || API_BASE;
 
 /* ── bearer token ─────────────────────────────────────────────
-   Login does not issue a JWT yet, but the machinery to require one
-   exists server-side. Reading `access_token` off the login response
-   and sending it back costs nothing today and means the console keeps
-   working the day the backend starts demanding it.
+   Every student data endpoint requires one. Register and login both
+   return `access_token` alongside the profile fields; it is kept here,
+   sent on every request, and dropped on a 401 so a stale token bounces
+   back to sign-in rather than wedging the console.
    ──────────────────────────────────────────────────────────────── */
 
 let authToken = (() => {

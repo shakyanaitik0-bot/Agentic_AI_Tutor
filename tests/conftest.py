@@ -23,6 +23,7 @@ from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import StaticPool
 
 from app.main import app
+from app.api.dependencies import get_db
 from app.core.database import Base, get_database
 from app.models.student import Student
 from app.models.session import Session as DBSession
@@ -76,7 +77,10 @@ def client(test_db: Session) -> Generator[TestClient, None, None]:
         finally:
             pass
 
+    # Routes depend on get_db, which wraps get_database; override both so the
+    # test client never touches the real SQLite file.
     app.dependency_overrides[get_database] = override_get_db
+    app.dependency_overrides[get_db] = override_get_db
 
     with TestClient(app) as c:
         yield c
@@ -180,6 +184,30 @@ def sample_quiz(test_db: Session, sample_student: Student) -> Quiz:
 def auth_headers(sample_student: Student) -> Dict[str, str]:
     """Generate authentication headers for a sample student."""
     tokens = create_tokens(sample_student.id, sample_student.email)
+    return {"Authorization": f"Bearer {tokens.access_token}"}
+
+
+@pytest.fixture
+def other_student(test_db: Session) -> Student:
+    """Create a second student, used to check cross-account access is refused."""
+    student = Student(
+        id=str(uuid.uuid4()),
+        name="Other Student",
+        email="other@example.com",
+        password_hash=get_password_hash("otherpassword123"),
+        exam_type="SAT",
+        is_active=True
+    )
+    test_db.add(student)
+    test_db.commit()
+    test_db.refresh(student)
+    return student
+
+
+@pytest.fixture
+def other_auth_headers(other_student: Student) -> Dict[str, str]:
+    """Generate authentication headers for the second student."""
+    tokens = create_tokens(other_student.id, other_student.email)
     return {"Authorization": f"Bearer {tokens.access_token}"}
 
 

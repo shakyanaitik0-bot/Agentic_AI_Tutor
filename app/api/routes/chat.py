@@ -10,8 +10,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field, ConfigDict
 from sqlalchemy.orm import Session as DBSessionType
 
-from app.api.dependencies import get_db
+from app.api.dependencies import get_current_student, get_db
 from app.models.session import Session as DBSession, Message
+from app.models.student import Student
 from app.agents.orchestrator import create_orchestrator
 
 router = APIRouter()
@@ -57,7 +58,11 @@ class ChatResponse(BaseModel):
 
 
 @router.post("", response_model=ChatResponse)
-def chat(request: ChatRequest, db: DBSessionType = Depends(get_db)):
+def chat(
+    request: ChatRequest,
+    current_student: Student = Depends(get_current_student),
+    db: DBSessionType = Depends(get_db),
+):
     """
     Send a message and get AI tutor response.
 
@@ -65,17 +70,20 @@ def chat(request: ChatRequest, db: DBSessionType = Depends(get_db)):
 
     Args:
         request: Chat request with session ID and message
+        current_student: Student resolved from the access token
         db: Database session
 
     Returns:
         ChatResponse: Agent response
 
     Raises:
-        HTTPException: 404 if session not found, 400 if session inactive
+        HTTPException: 401 if unauthenticated, 404 if the session does not
+            belong to the caller, 400 if session inactive
     """
-    # Get and verify session
+    # Get and verify session. Sessions owned by another student are reported
+    # as missing so session IDs cannot be probed.
     session = db.query(DBSession).filter(DBSession.id == request.session_id).first()
-    if not session:
+    if not session or session.student_id != current_student.id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"Session {request.session_id} not found"
         )

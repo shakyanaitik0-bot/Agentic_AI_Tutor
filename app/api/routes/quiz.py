@@ -8,7 +8,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session as DBSessionType
 
-from app.api.dependencies import get_db
+from app.api.dependencies import get_current_student, get_db, verify_student_access
 from app.models.student import Student
 from app.models.session import Session as DBSession
 from app.agents.quiz_agent import QuizGeneratorAgent
@@ -19,26 +19,28 @@ logger = logging.getLogger(__name__)
 
 
 @router.post("/generate", response_model=QuizResponse)
-def generate_quiz(request: QuizRequest, db: DBSessionType = Depends(get_db)):
+def generate_quiz(
+    request: QuizRequest,
+    current_student: Student = Depends(get_current_student),
+    db: DBSessionType = Depends(get_db),
+):
     """
-    Generate an adaptive quiz for a student.
+    Generate an adaptive quiz for the authenticated student.
 
     Args:
         request: Quiz generation request
+        current_student: Student resolved from the access token
         db: Database session
 
     Returns:
         QuizResponse: Generated quiz
 
     Raises:
-        HTTPException: 404 if student not found
+        HTTPException: 401 if unauthenticated, 403 if generating a quiz for
+            another student
     """
-    # Get student
-    student = db.query(Student).filter(Student.id == request.student_id).first()
-    if not student:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=f"Student {request.student_id} not found"
-        )
+    verify_student_access(request.student_id, current_student)
+    student = current_student
 
     # Get or create active session for quiz
     active_session = (
@@ -95,27 +97,28 @@ def generate_quiz(request: QuizRequest, db: DBSessionType = Depends(get_db)):
 
 
 @router.post("/submit", response_model=QuizResult)
-def submit_quiz(submission: QuizSubmission, db: DBSessionType = Depends(get_db)):
+def submit_quiz(
+    submission: QuizSubmission,
+    current_student: Student = Depends(get_current_student),
+    db: DBSessionType = Depends(get_db),
+):
     """
     Submit quiz answers for grading.
 
     Args:
         submission: Quiz submission with answers
+        current_student: Student resolved from the access token
         db: Database session
 
     Returns:
         QuizResult: Grading results
 
     Raises:
-        HTTPException: 404 if student not found
+        HTTPException: 401 if unauthenticated, 403 if submitting on behalf of
+            another student
     """
-    # Get student
-    student = db.query(Student).filter(Student.id == submission.student_id).first()
-    if not student:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Student {submission.student_id} not found",
-        )
+    verify_student_access(submission.student_id, current_student)
+    student = current_student
 
     # Get active session
     active_session = (
