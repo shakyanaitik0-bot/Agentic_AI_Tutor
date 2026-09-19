@@ -211,10 +211,11 @@ Every endpoint below except `/api/students/register`, `/api/students/login`,
 Authorization: Bearer <access_token>
 ```
 
-`register` and `login` return an access token (30 minutes), a refresh token
-(7 days) and the student profile. A student can only read and write their own
-data: a request naming another student's ID is rejected with 403, and another
-student's session, deck or card reads as 404.
+`register` and `login` return the student profile with an access token
+(30 minutes) and a refresh token (7 days) alongside it, so the whole response
+can be treated as the signed-in student. A student can only read and write
+their own data: a request naming another student's ID is rejected with 403,
+and another student's session, deck or card reads as 404.
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|

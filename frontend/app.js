@@ -275,12 +275,12 @@ document.getElementById('btn-login').addEventListener('click', async () => {
 
         // Login successful - keep the tokens before any authenticated call
         storeTokens(data);
-        state.studentId = data.student.id;
-        state.studentData = data.student;
+        state.studentId = data.id;
+        state.studentData = data;
 
         // Update dashboard
-        elements.displayName.textContent = data.student.name;
-        elements.displayExam.textContent = data.student.exam_type;
+        elements.displayName.textContent = data.name;
+        elements.displayExam.textContent = data.exam_type;
 
         // Load previous session if exists
         await loadPreviousSession();
@@ -329,12 +329,12 @@ elements.registrationForm.addEventListener('submit', async (e) => {
 
         // Registration signs the student in straight away
         storeTokens(data);
-        state.studentId = data.student.id;
-        state.studentData = data.student;
+        state.studentId = data.id;
+        state.studentData = data;
 
         // Update dashboard
-        elements.displayName.textContent = data.student.name;
-        elements.displayExam.textContent = data.student.exam_type;
+        elements.displayName.textContent = data.name;
+        elements.displayExam.textContent = data.exam_type;
 
         // Load user's documents (will be empty for new users)
         await initializeDocuments();

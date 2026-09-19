@@ -31,7 +31,7 @@ class TestTokenIssuing:
         data = response.json()
         assert data["token_type"] == "bearer"
         assert data["expires_in"] > 0
-        assert data["student"]["id"] == sample_student.id
+        assert data["id"] == sample_student.id
 
         token_data = verify_token(data["access_token"], token_type="access")
         assert token_data is not None
@@ -51,7 +51,7 @@ class TestTokenIssuing:
         assert response.status_code == 201
         data = response.json()
         assert verify_token(data["access_token"], token_type="access") is not None
-        assert data["student"]["name"] == "New Student"
+        assert data["name"] == "New Student"
 
     def test_login_wrong_password_issues_no_token(self, client: TestClient, sample_student):
         response = client.post(

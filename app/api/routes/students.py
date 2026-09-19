@@ -12,7 +12,7 @@ from app.api.dependencies import get_current_student, get_db, verify_student_acc
 from app.core.security import create_tokens, refresh_access_token
 from app.models.student import Student
 from app.schemas.common import (
-    AuthResponse,
+    LoginResponse,
     RefreshRequest,
     StudentCreate,
     StudentLogin,
@@ -24,7 +24,7 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
-@router.post("/register", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/register", response_model=LoginResponse, status_code=status.HTTP_201_CREATED)
 def register_student(student_data: StudentCreate, db: Session = Depends(get_db)):
     """
     Register a new student.
@@ -34,7 +34,7 @@ def register_student(student_data: StudentCreate, db: Session = Depends(get_db))
         db: Database session
 
     Returns:
-        AuthResponse: Access and refresh tokens plus the new student profile
+        LoginResponse: The new student profile plus access and refresh tokens
 
     Raises:
         HTTPException: 400 if email already exists
@@ -74,13 +74,16 @@ def register_student(student_data: StudentCreate, db: Session = Depends(get_db))
 
     tokens = create_tokens(student.id, student.email)
 
-    return AuthResponse(
-        **tokens.model_dump(),
-        student=StudentResponse.model_validate(student),
+    return LoginResponse(
+        **StudentResponse.model_validate(student).model_dump(),
+        access_token=tokens.access_token,
+        refresh_token=tokens.refresh_token,
+        token_type=tokens.token_type,
+        expires_in=tokens.expires_in,
     )
 
 
-@router.post("/login", response_model=AuthResponse)
+@router.post("/login", response_model=LoginResponse)
 def login_student(login_data: StudentLogin, db: Session = Depends(get_db)):
     """
     Student login with email and password.
@@ -90,7 +93,7 @@ def login_student(login_data: StudentLogin, db: Session = Depends(get_db)):
         db: Database session
 
     Returns:
-        AuthResponse: Access and refresh tokens plus the student profile
+        LoginResponse: The student profile plus access and refresh tokens
 
     Raises:
         HTTPException: 401 if credentials invalid
@@ -122,9 +125,12 @@ def login_student(login_data: StudentLogin, db: Session = Depends(get_db)):
 
     tokens = create_tokens(student.id, student.email)
 
-    return AuthResponse(
-        **tokens.model_dump(),
-        student=StudentResponse.model_validate(student),
+    return LoginResponse(
+        **StudentResponse.model_validate(student).model_dump(),
+        access_token=tokens.access_token,
+        refresh_token=tokens.refresh_token,
+        token_type=tokens.token_type,
+        expires_in=tokens.expires_in,
     )
 
 

@@ -87,10 +87,24 @@ class TokenPair(BaseModel):
     expires_in: int = Field(..., description="Access token lifetime in seconds")
 
 
-class AuthResponse(TokenPair):
-    """Tokens plus the profile of the student they belong to"""
+class LoginResponse(StudentResponse):
+    """
+    Response schema for a successful login or registration.
 
-    student: StudentResponse = Field(..., description="Authenticated student profile")
+    Extends the student profile with JWT credentials so clients can
+    authenticate subsequent requests. The tokens sit alongside the profile
+    fields rather than under a nested key, so a client can treat the whole
+    response as the signed-in student.
+    """
+
+    access_token: str = Field(..., description="JWT access token")
+    refresh_token: str = Field(..., description="JWT refresh token")
+    token_type: str = Field(
+        default="bearer", description="Token scheme for the Authorization header"
+    )
+    expires_in: int = Field(..., description="Access token lifetime in seconds")
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class RefreshRequest(BaseModel):
