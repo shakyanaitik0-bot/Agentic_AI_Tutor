@@ -64,6 +64,26 @@ export function icon(name, cls = '') {
 }
 
 /**
+ * Swap a button into a spinner while a request is in flight, and back.
+ *
+ * Built from nodes rather than a markup string so that `fragment` below
+ * stays the single place in the console where HTML is ever parsed.
+ */
+export function setBusy(button, label) {
+  if (!button) return;
+  button.disabled = true;
+  const spinner = document.createElement('span');
+  spinner.className = 'spinner';
+  button.replaceChildren(spinner, document.createTextNode(` ${label}`));
+}
+
+export function clearBusy(button, label) {
+  if (!button) return;
+  button.disabled = false;
+  button.replaceChildren(document.createTextNode(label));
+}
+
+/**
  * Delegated events, scoped to a host so a re-render never leaves
  * listeners behind on detached nodes.
  */
