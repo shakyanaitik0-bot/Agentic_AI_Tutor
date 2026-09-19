@@ -13,6 +13,7 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 
 from app.core.config import settings
+from app.core.security import check_jwt_secret
 from app.api import api_router
 
 # Import all models to ensure SQLAlchemy relationships are resolved
@@ -31,6 +32,7 @@ async def lifespan(app: FastAPI):
     """Application lifespan events"""
     # Startup
     logger.info("Starting Agentic AI Tutor API...")
+    check_jwt_secret()
     logger.info(f"Configuration loaded from config.yaml")
     logger.info(f"LLM Provider: {settings.get('llm.provider')}")
     logger.info(f"Embedding Provider: {settings.get('embeddings.provider')}")

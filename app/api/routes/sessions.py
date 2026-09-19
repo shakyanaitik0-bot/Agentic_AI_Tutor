@@ -10,7 +10,12 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session as DBSessionType
 
-from app.api.dependencies import get_db, get_session_by_id
+from app.api.dependencies import (
+    get_current_student,
+    get_db,
+    get_owned_session,
+    verify_student_access,
+)
 from app.models.student import Student
 from app.models.session import Session as DBSession, Message
 from app.schemas.common import SessionCreate, SessionResponse, MessageResponse
@@ -20,27 +25,28 @@ logger = logging.getLogger(__name__)
 
 
 @router.post("/start", response_model=SessionResponse, status_code=status.HTTP_201_CREATED)
-def start_session(session_data: SessionCreate, db: DBSessionType = Depends(get_db)):
+def start_session(
+    session_data: SessionCreate,
+    current_student: Student = Depends(get_current_student),
+    db: DBSessionType = Depends(get_db),
+):
     """
-    Start a new learning session for a student.
+    Start a new learning session for the authenticated student.
 
     Args:
         session_data: Session creation data
+        current_student: Student resolved from the access token
         db: Database session
 
     Returns:
         SessionResponse: Created session
 
     Raises:
-        HTTPException: 404 if student not found
+        HTTPException: 401 if unauthenticated, 403 if starting a session for
+            another student
     """
-    # Verify student exists
-    student = db.query(Student).filter(Student.id == session_data.student_id).first()
-    if not student:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Student {session_data.student_id} not found",
-        )
+    verify_student_access(session_data.student_id, current_student)
+    student = current_student
 
     # Create new session
     new_session = DBSession(
@@ -57,12 +63,12 @@ def start_session(session_data: SessionCreate, db: DBSessionType = Depends(get_d
 
 
 @router.get("/{session_id}", response_model=SessionResponse)
-def get_session(session: DBSession = Depends(get_session_by_id)):
+def get_session(session: DBSession = Depends(get_owned_session)):
     """
-    Get session details by ID.
+    Get details of one of the authenticated student's sessions.
 
     Args:
-        session: Session from dependency
+        session: The student's own session
 
     Returns:
         SessionResponse: Session details
@@ -73,13 +79,13 @@ def get_session(session: DBSession = Depends(get_session_by_id)):
 
 @router.post("/{session_id}/end", response_model=SessionResponse)
 def end_session(
-    session: DBSession = Depends(get_session_by_id), db: DBSessionType = Depends(get_db)
+    session: DBSession = Depends(get_owned_session), db: DBSessionType = Depends(get_db)
 ):
     """
-    End an active session.
+    End one of the authenticated student's active sessions.
 
     Args:
-        session: Session from dependency
+        session: The student's own session
         db: Database session
 
     Returns:
@@ -107,18 +113,27 @@ def end_session(
 
 @router.get("", response_model=List[SessionResponse])
 def get_student_sessions(
-    student_id: str = Query(..., description="Student ID"), db: DBSessionType = Depends(get_db)
+    student_id: str = Query(..., description="Student ID"),
+    current_student: Student = Depends(get_current_student),
+    db: DBSessionType = Depends(get_db),
 ):
     """
-    Get all sessions for a student (ordered by most recent first).
+    Get all of the authenticated student's sessions (most recent first).
 
     Args:
-        student_id: Student ID
+        student_id: Student ID (must be the caller's own)
+        current_student: Student resolved from the access token
         db: Database session
 
     Returns:
         List[SessionResponse]: List of sessions
+
+    Raises:
+        HTTPException: 401 if unauthenticated, 403 if requesting another
+            student's sessions
     """
+    verify_student_access(student_id, current_student)
+
     sessions = (
         db.query(DBSession)
         .filter(DBSession.student_id == student_id)
@@ -131,23 +146,20 @@ def get_student_sessions(
 
 
 @router.get("/{session_id}/messages", response_model=List[MessageResponse])
-def get_session_messages(session_id: str, db: DBSessionType = Depends(get_db)):
+def get_session_messages(
+    session: DBSession = Depends(get_owned_session), db: DBSessionType = Depends(get_db)
+):
     """
-    Get all messages from a session.
+    Get all messages from one of the authenticated student's sessions.
 
     Args:
-        session_id: Session ID
+        session: The student's own session
         db: Database session
 
     Returns:
         List[MessageResponse]: List of messages ordered by timestamp
     """
-    # Verify session exists
-    session = db.query(DBSession).filter(DBSession.id == session_id).first()
-    if not session:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=f"Session {session_id} not found"
-        )
+    session_id = session.id
 
     messages = (
         db.query(Message)

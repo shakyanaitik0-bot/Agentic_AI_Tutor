@@ -7,12 +7,111 @@ const state = {
     sessionId: null,
     studentData: null,
     currentQuiz: null,
+    accessToken: null,
+    refreshToken: null,
     // Flashcard state
     flashcardDecks: [],
     currentStudySession: null,
     currentCardIndex: 0,
     studyStartTime: null
 };
+
+// Auth token handling. The API rejects any data request without a valid
+// access token, so every call below must go through authHeaders().
+const TOKEN_STORAGE_KEY = 'tutorAuthTokens';
+
+function storeTokens(tokens) {
+    state.accessToken = tokens.access_token;
+    state.refreshToken = tokens.refresh_token;
+
+    try {
+        sessionStorage.setItem(TOKEN_STORAGE_KEY, JSON.stringify({
+            access_token: tokens.access_token,
+            refresh_token: tokens.refresh_token
+        }));
+    } catch (e) {
+        // sessionStorage can be unavailable (private mode); tokens still work
+        // for this page load.
+        console.warn('Could not persist tokens:', e);
+    }
+}
+
+function clearTokens() {
+    state.accessToken = null;
+    state.refreshToken = null;
+
+    try {
+        sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+    } catch (e) {
+        console.warn('Could not clear tokens:', e);
+    }
+}
+
+function authHeaders(extra = {}) {
+    if (!state.accessToken) {
+        return { ...extra };
+    }
+    return { ...extra, Authorization: `Bearer ${state.accessToken}` };
+}
+
+// Exchange the refresh token for a new pair. Returns true on success.
+async function refreshSession() {
+    if (!state.refreshToken) {
+        return false;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/students/refresh`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refresh_token: state.refreshToken })
+        });
+
+        if (!response.ok) {
+            return false;
+        }
+
+        storeTokens(await response.json());
+        return true;
+    } catch (error) {
+        console.error('Token refresh failed:', error);
+        return false;
+    }
+}
+
+// Send the user back to the login screen when their session can no longer be
+// renewed.
+function handleSessionExpired() {
+    clearTokens();
+    state.studentId = null;
+    state.sessionId = null;
+    state.studentData = null;
+
+    elements.dashboardSection.classList.add('hidden');
+    elements.registrationSection.classList.remove('hidden');
+    alert('Your session has expired. Please log in again.');
+}
+
+// fetch() wrapper that attaches the access token and retries once after
+// refreshing an expired one.
+async function authFetch(url, options = {}) {
+    const send = () => fetch(url, {
+        ...options,
+        headers: authHeaders(options.headers || {})
+    });
+
+    let response = await send();
+
+    if (response.status === 401 && await refreshSession()) {
+        response = await send();
+    }
+
+    if (response.status === 401) {
+        handleSessionExpired();
+    }
+
+    return response;
+}
 
 // DOM Elements
 const elements = {
@@ -122,12 +221,12 @@ function addChatMessage(role, content) {
 // API Functions
 async function apiRequest(endpoint, options = {}) {
     try {
-        const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        const response = await authFetch(`${API_BASE_URL}${endpoint}`, {
+            ...options,
             headers: {
                 'Content-Type': 'application/json',
                 ...options.headers
-            },
-            ...options
+            }
         });
 
         const data = await response.json();
@@ -174,7 +273,8 @@ document.getElementById('btn-login').addEventListener('click', async () => {
             body: JSON.stringify({ email, password })
         });
 
-        // Login successful
+        // Login successful - keep the tokens before any authenticated call
+        storeTokens(data);
         state.studentId = data.id;
         state.studentData = data;
 
@@ -227,6 +327,8 @@ elements.registrationForm.addEventListener('submit', async (e) => {
             body: JSON.stringify(formData)
         });
 
+        // Registration signs the student in straight away
+        storeTokens(data);
         state.studentId = data.id;
         state.studentData = data;
 
@@ -255,7 +357,7 @@ elements.registrationForm.addEventListener('submit', async (e) => {
 async function loadPreviousSession() {
     try {
         // Get student's most recent active session
-        const response = await fetch(`${API_BASE_URL}/sessions?student_id=${state.studentId}`);
+        const response = await authFetch(`${API_BASE_URL}/sessions?student_id=${state.studentId}`);
 
         if (!response.ok) {
             // No previous sessions - that's fine for new users
@@ -300,7 +402,7 @@ async function loadPreviousSession() {
 // Load Session Messages
 async function loadSessionMessages(sessionId) {
     try {
-        const response = await fetch(`${API_BASE_URL}/sessions/${sessionId}/messages`);
+        const response = await authFetch(`${API_BASE_URL}/sessions/${sessionId}/messages`);
 
         if (!response.ok) {
             return;
@@ -804,7 +906,9 @@ elements.documentUploadForm.addEventListener('submit', async (e) => {
             formData.append('subject', subjectInput.value);
         }
 
-        const response = await fetch(`${API_BASE_URL}/documents/upload`, {
+        // FormData sets its own Content-Type boundary, so only the
+        // Authorization header is added here.
+        const response = await authFetch(`${API_BASE_URL}/documents/upload`, {
             method: 'POST',
             body: formData
         });
@@ -851,7 +955,7 @@ async function loadStudentDocuments() {
     if (!state.studentId) return;
 
     try {
-        const response = await fetch(`${API_BASE_URL}/documents/list/${state.studentId}`);
+        const response = await authFetch(`${API_BASE_URL}/documents/list/${state.studentId}`);
         const data = await response.json();
 
         if (!response.ok) {

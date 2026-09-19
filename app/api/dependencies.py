@@ -239,3 +239,86 @@ async def get_optional_current_student(
         return None
 
     return db.query(Student).filter(Student.id == token_data.student_id).first()
+
+
+# ============================================================================
+# Ownership Checks
+# ============================================================================
+
+
+def verify_student_access(student_id: str, current_student: Student) -> None:
+    """
+    Reject a request that names a student other than the authenticated one.
+
+    Endpoints that still take an explicit ``student_id`` must call this so a
+    valid token for one student cannot be used to read or write another
+    student's data.
+
+    Args:
+        student_id: Student ID supplied in the path, query or body
+        current_student: Student the access token was issued to
+
+    Raises:
+        HTTPException: 403 if the IDs differ
+    """
+    if student_id != current_student.id:
+        logger.warning(f"Student {current_student.id} attempted to access data for {student_id}")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You may only access your own data",
+        )
+
+
+async def get_owned_session(
+    session_id: str,
+    current_student: Student = Depends(get_current_student),
+    db: Session = Depends(get_db),
+) -> DBSession:
+    """
+    Get a session by ID, but only if it belongs to the authenticated student.
+
+    Sessions owned by somebody else are reported as missing rather than
+    forbidden, so session IDs cannot be probed for existence.
+
+    Args:
+        session_id: Session UUID
+        current_student: Authenticated student
+        db: Database session
+
+    Returns:
+        DBSession: The student's own session
+
+    Raises:
+        HTTPException: 404 if the session does not exist or is not theirs
+    """
+    session = db.query(DBSession).filter(DBSession.id == session_id).first()
+
+    if not session or session.student_id != current_student.id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Session {session_id} not found"
+        )
+
+    return session
+
+
+async def verify_owned_active_session(
+    session: DBSession = Depends(get_owned_session),
+) -> DBSession:
+    """
+    Like :func:`get_owned_session`, but also requires the session to be active.
+
+    Args:
+        session: The student's own session
+
+    Returns:
+        DBSession: Active session
+
+    Raises:
+        HTTPException: 400 if the session has ended
+    """
+    if not session.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=f"Session {session.id} is not active"
+        )
+
+    return session

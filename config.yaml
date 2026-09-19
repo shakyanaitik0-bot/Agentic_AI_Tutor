@@ -285,5 +285,14 @@ environments:
         origins:
           - "https://yourdomain.com"  # Update with actual domain
 
+# ==========================================
+# AUTHENTICATION
+# ==========================================
+security:
+  # The JWT signing key is NEVER stored here - it comes from SECRET_KEY in .env
+  jwt_algorithm: "HS256"
+  access_token_expire_minutes: 30
+  refresh_token_expire_days: 7
+
 # Default to development environment
 active_environment: "development"

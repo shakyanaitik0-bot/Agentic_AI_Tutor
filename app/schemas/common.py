@@ -78,12 +78,23 @@ class StudentResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class TokenPair(BaseModel):
+    """Access and refresh tokens issued after authentication"""
+
+    access_token: str = Field(..., description="Short-lived JWT for API calls")
+    refresh_token: str = Field(..., description="Long-lived JWT used to mint new access tokens")
+    token_type: str = Field("bearer", description="Auth scheme for the Authorization header")
+    expires_in: int = Field(..., description="Access token lifetime in seconds")
+
+
 class LoginResponse(StudentResponse):
     """
-    Response schema for a successful login.
+    Response schema for a successful login or registration.
 
     Extends the student profile with JWT credentials so clients can
-    authenticate subsequent requests.
+    authenticate subsequent requests. The tokens sit alongside the profile
+    fields rather than under a nested key, so a client can treat the whole
+    response as the signed-in student.
     """
 
     access_token: str = Field(..., description="JWT access token")
@@ -94,6 +105,12 @@ class LoginResponse(StudentResponse):
     expires_in: int = Field(..., description="Access token lifetime in seconds")
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class RefreshRequest(BaseModel):
+    """Request schema for exchanging a refresh token"""
+
+    refresh_token: str = Field(..., description="Refresh token issued at login")
 
 
 class SessionCreate(BaseModel):

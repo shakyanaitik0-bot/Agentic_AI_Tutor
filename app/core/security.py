@@ -40,10 +40,35 @@ class TokenResponse(BaseModel):
 
 
 # JWT Configuration
+DEFAULT_SECRET_KEY = "your-secret-key-change-in-production"
+
 JWT_SECRET_KEY = settings.get("security.jwt_secret_key") or settings.secret_key
 JWT_ALGORITHM = settings.get("security.jwt_algorithm", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = settings.get("security.access_token_expire_minutes", 30)
 REFRESH_TOKEN_EXPIRE_DAYS = settings.get("security.refresh_token_expire_days", 7)
+
+
+def check_jwt_secret() -> None:
+    """
+    Make sure the JWT signing key is not the shipped placeholder.
+
+    Tokens signed with the default key can be forged by anyone who has read
+    the repository, so refuse to start in production and warn elsewhere.
+    """
+    if JWT_SECRET_KEY != DEFAULT_SECRET_KEY:
+        return
+
+    if settings.environment == "production":
+        raise RuntimeError(
+            "SECRET_KEY is still the default placeholder. Set SECRET_KEY in the "
+            "environment before running in production - JWTs signed with the "
+            "default key can be forged by anyone."
+        )
+
+    logger.warning(
+        "SECRET_KEY is the default placeholder - JWTs are forgeable. "
+        "Set SECRET_KEY in your .env before deploying."
+    )
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:

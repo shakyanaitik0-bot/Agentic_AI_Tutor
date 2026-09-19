@@ -12,7 +12,7 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
 from sqlalchemy.orm import Session as DBSessionType
 
-from app.api.dependencies import get_db
+from app.api.dependencies import get_current_student, get_db, verify_student_access
 from app.models.student import Student
 from app.services.document_processor import DocumentProcessor
 from app.services.rag_service import get_rag_service
@@ -48,6 +48,7 @@ async def upload_document(
     file: UploadFile = File(...),
     student_id: str = Form(...),
     subject: str = Form(None),
+    current_student: Student = Depends(get_current_student),
     db: DBSessionType = Depends(get_db),
 ):
     """
@@ -68,12 +69,8 @@ async def upload_document(
     Raises:
         HTTPException: 400 for invalid file, 404 if student not found
     """
-    # Verify student exists
-    student = db.query(Student).filter(Student.id == student_id).first()
-    if not student:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=f"Student {student_id} not found"
-        )
+    verify_student_access(student_id, current_student)
+    student = current_student
 
     # Validate file extension
     file_ext = os.path.splitext(file.filename)[1].lower()
@@ -165,23 +162,27 @@ async def upload_document(
 
 
 @router.get("/list/{student_id}", response_model=DocumentListResponse)
-def list_student_documents(student_id: str, db: DBSessionType = Depends(get_db)):
+def list_student_documents(
+    student_id: str,
+    current_student: Student = Depends(get_current_student),
+    db: DBSessionType = Depends(get_db),
+):
     """
-    List all documents uploaded by a student.
+    List all documents uploaded by the authenticated student.
 
     Args:
-        student_id: Student ID
+        student_id: Student ID (must be the caller's own)
+        current_student: Student resolved from the access token
         db: Database session
 
     Returns:
         DocumentListResponse: List of documents and statistics
+
+    Raises:
+        HTTPException: 401 if unauthenticated, 403 if listing another
+            student's documents
     """
-    # Verify student exists
-    student = db.query(Student).filter(Student.id == student_id).first()
-    if not student:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=f"Student {student_id} not found"
-        )
+    verify_student_access(student_id, current_student)
 
     try:
         # Query vector store for student's documents
