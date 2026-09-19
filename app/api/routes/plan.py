@@ -8,7 +8,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session as DBSessionType
 
-from app.api.dependencies import get_db
+from app.api.dependencies import get_current_student, get_db, verify_student_access
 from app.models.student import Student
 from app.models.session import Session as DBSession
 from app.agents.planner_agent import PlannerAgent
@@ -19,26 +19,28 @@ logger = logging.getLogger(__name__)
 
 
 @router.post("/generate", response_model=StudyPlanResponse)
-def generate_study_plan(request: StudyPlanRequest, db: DBSessionType = Depends(get_db)):
+def generate_study_plan(
+    request: StudyPlanRequest,
+    current_student: Student = Depends(get_current_student),
+    db: DBSessionType = Depends(get_db),
+):
     """
-    Generate a personalized study plan for a student.
+    Generate a personalized study plan for the authenticated student.
 
     Args:
         request: Study plan request parameters
+        current_student: Student resolved from the access token
         db: Database session
 
     Returns:
         StudyPlanResponse: Generated study plan
 
     Raises:
-        HTTPException: 404 if student not found
+        HTTPException: 401 if unauthenticated, 403 if planning for another
+            student
     """
-    # Get student
-    student = db.query(Student).filter(Student.id == request.student_id).first()
-    if not student:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=f"Student {request.student_id} not found"
-        )
+    verify_student_access(request.student_id, current_student)
+    student = current_student
 
     # Get or create session
     active_session = (
@@ -103,25 +105,33 @@ def generate_study_plan(request: StudyPlanRequest, db: DBSessionType = Depends(g
 
 
 @router.get("/{student_id}", response_model=StudyPlanResponse)
-def get_latest_plan(student_id: str, db: DBSessionType = Depends(get_db)):
+def get_latest_plan(
+    student_id: str,
+    current_student: Student = Depends(get_current_student),
+    db: DBSessionType = Depends(get_db),
+):
     """
-    Get the latest study plan for a student.
+    Get the latest study plan for the authenticated student.
 
     Note: Currently generates a new plan on request.
     In production, this should retrieve stored plans from database.
 
     Args:
-        student_id: Student ID
+        student_id: Student ID (must be the caller's own)
+        current_student: Student resolved from the access token
         db: Database session
 
     Returns:
         StudyPlanResponse: Latest study plan
 
     Raises:
-        HTTPException: 404 if student not found
+        HTTPException: 401 if unauthenticated, 403 if requesting another
+            student's plan
     """
+    verify_student_access(student_id, current_student)
+
     # For now, generate a default 30-day plan
     # In production, retrieve from database
     request = StudyPlanRequest(student_id=student_id, timeline_days=30)
 
-    return generate_study_plan(request, db)
+    return generate_study_plan(request, current_student, db)

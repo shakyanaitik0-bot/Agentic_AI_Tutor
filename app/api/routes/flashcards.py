@@ -14,12 +14,41 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 
-from app.api.dependencies import get_db, get_student_by_id
+from app.api.dependencies import get_current_student, get_db, verify_student_access
 from app.models.student import Student
 from app.models.flashcard import FlashcardDeck, Flashcard, FlashcardReview
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/flashcards", tags=["Flashcards"])
+
+
+# ============== Ownership Helpers ==============
+
+def get_owned_deck(deck_id: str, current_student: Student, db: Session) -> FlashcardDeck:
+    """
+    Load a deck, but only if it belongs to the authenticated student.
+
+    Decks owned by somebody else are reported as missing so deck IDs cannot
+    be probed for existence.
+    """
+    deck = db.query(FlashcardDeck).filter(FlashcardDeck.id == deck_id).first()
+
+    if not deck or deck.student_id != current_student.id:
+        raise HTTPException(status_code=404, detail="Deck not found")
+
+    return deck
+
+
+def get_owned_card(card_id: str, current_student: Student, db: Session) -> Flashcard:
+    """
+    Load a card, but only if its deck belongs to the authenticated student.
+    """
+    card = db.query(Flashcard).filter(Flashcard.id == card_id).first()
+
+    if not card or card.deck is None or card.deck.student_id != current_student.id:
+        raise HTTPException(status_code=404, detail="Card not found")
+
+    return card
 
 
 # ============== Request/Response Schemas ==============
@@ -82,6 +111,7 @@ class StudySessionResponse(BaseModel):
 async def generate_flashcards(
     student_id: str,
     request: FlashcardGenerateRequest,
+    current_student: Student = Depends(get_current_student),
     db: Session = Depends(get_db)
 ):
     """
@@ -94,10 +124,7 @@ async def generate_flashcards(
 
     All cards include source citations.
     """
-    # Verify student exists
-    student = db.query(Student).filter(Student.id == student_id).first()
-    if not student:
-        raise HTTPException(status_code=404, detail="Student not found")
+    verify_student_access(student_id, current_student)
 
     try:
         # Import flashcard agent
@@ -166,12 +193,11 @@ async def generate_flashcards(
 @router.get("/decks/{student_id}", response_model=List[DeckResponse])
 def get_student_decks(
     student_id: str,
+    current_student: Student = Depends(get_current_student),
     db: Session = Depends(get_db)
 ):
-    """Get all flashcard decks for a student"""
-    student = db.query(Student).filter(Student.id == student_id).first()
-    if not student:
-        raise HTTPException(status_code=404, detail="Student not found")
+    """Get all flashcard decks for the authenticated student"""
+    verify_student_access(student_id, current_student)
 
     decks = db.query(FlashcardDeck).filter(FlashcardDeck.student_id == student_id).all()
 
@@ -193,12 +219,11 @@ def get_student_decks(
 @router.get("/deck/{deck_id}", response_model=DeckResponse)
 def get_deck(
     deck_id: str,
+    current_student: Student = Depends(get_current_student),
     db: Session = Depends(get_db)
 ):
-    """Get a specific flashcard deck"""
-    deck = db.query(FlashcardDeck).filter(FlashcardDeck.id == deck_id).first()
-    if not deck:
-        raise HTTPException(status_code=404, detail="Deck not found")
+    """Get one of the authenticated student's flashcard decks"""
+    deck = get_owned_deck(deck_id, current_student, db)
 
     return DeckResponse(
         id=deck.id,
@@ -217,6 +242,7 @@ def get_study_session(
     deck_id: str,
     max_cards: int = Query(default=20, ge=1, le=50),
     include_new: bool = Query(default=True),
+    current_student: Student = Depends(get_current_student),
     db: Session = Depends(get_db)
 ):
     """
@@ -225,9 +251,7 @@ def get_study_session(
     Returns due cards plus optionally new cards.
     Cards are returned without answers for initial display.
     """
-    deck = db.query(FlashcardDeck).filter(FlashcardDeck.id == deck_id).first()
-    if not deck:
-        raise HTTPException(status_code=404, detail="Deck not found")
+    deck = get_owned_deck(deck_id, current_student, db)
 
     # Get due cards
     due_cards = deck.get_due_cards(limit=max_cards)
@@ -266,12 +290,11 @@ def get_study_session(
 @router.get("/card/{card_id}/reveal")
 def reveal_card(
     card_id: str,
+    current_student: Student = Depends(get_current_student),
     db: Session = Depends(get_db)
 ):
-    """Get a card with its answer revealed"""
-    card = db.query(Flashcard).filter(Flashcard.id == card_id).first()
-    if not card:
-        raise HTTPException(status_code=404, detail="Card not found")
+    """Get one of the authenticated student's cards with its answer revealed"""
+    card = get_owned_card(card_id, current_student, db)
 
     return {
         "id": card.id,
@@ -286,6 +309,7 @@ def reveal_card(
 @router.post("/review")
 def record_review(
     request: FlashcardReviewRequest,
+    current_student: Student = Depends(get_current_student),
     db: Session = Depends(get_db)
 ):
     """
@@ -301,9 +325,7 @@ def record_review(
 
     Updates card scheduling using SM-2 algorithm.
     """
-    card = db.query(Flashcard).filter(Flashcard.id == request.card_id).first()
-    if not card:
-        raise HTTPException(status_code=404, detail="Card not found")
+    card = get_owned_card(request.card_id, current_student, db)
 
     # Get deck for student_id
     deck = card.deck
@@ -342,12 +364,11 @@ def record_review(
 @router.delete("/deck/{deck_id}")
 def delete_deck(
     deck_id: str,
+    current_student: Student = Depends(get_current_student),
     db: Session = Depends(get_db)
 ):
-    """Delete a flashcard deck and all its cards"""
-    deck = db.query(FlashcardDeck).filter(FlashcardDeck.id == deck_id).first()
-    if not deck:
-        raise HTTPException(status_code=404, detail="Deck not found")
+    """Delete one of the authenticated student's decks and all its cards"""
+    deck = get_owned_deck(deck_id, current_student, db)
 
     db.delete(deck)
     db.commit()
@@ -358,12 +379,11 @@ def delete_deck(
 @router.get("/stats/{student_id}")
 def get_flashcard_stats(
     student_id: str,
+    current_student: Student = Depends(get_current_student),
     db: Session = Depends(get_db)
 ):
-    """Get flashcard statistics for a student"""
-    student = db.query(Student).filter(Student.id == student_id).first()
-    if not student:
-        raise HTTPException(status_code=404, detail="Student not found")
+    """Get flashcard statistics for the authenticated student"""
+    verify_student_access(student_id, current_student)
 
     decks = db.query(FlashcardDeck).filter(FlashcardDeck.student_id == student_id).all()
 

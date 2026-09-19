@@ -78,6 +78,27 @@ class StudentResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class TokenPair(BaseModel):
+    """Access and refresh tokens issued after authentication"""
+
+    access_token: str = Field(..., description="Short-lived JWT for API calls")
+    refresh_token: str = Field(..., description="Long-lived JWT used to mint new access tokens")
+    token_type: str = Field("bearer", description="Auth scheme for the Authorization header")
+    expires_in: int = Field(..., description="Access token lifetime in seconds")
+
+
+class AuthResponse(TokenPair):
+    """Tokens plus the profile of the student they belong to"""
+
+    student: StudentResponse = Field(..., description="Authenticated student profile")
+
+
+class RefreshRequest(BaseModel):
+    """Request schema for exchanging a refresh token"""
+
+    refresh_token: str = Field(..., description="Refresh token issued at login")
+
+
 class SessionCreate(BaseModel):
     """Request schema for creating a new session"""
 

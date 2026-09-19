@@ -204,10 +204,24 @@ Easiness Factor Adjustment:
 
 ## API Endpoints
 
+Every endpoint below except `/api/students/register`, `/api/students/login`,
+`/api/students/refresh`, `/health` and `/metrics` requires a bearer token:
+
+```
+Authorization: Bearer <access_token>
+```
+
+`register` and `login` return an access token (30 minutes), a refresh token
+(7 days) and the student profile. A student can only read and write their own
+data: a request naming another student's ID is rejected with 403, and another
+student's session, deck or card reads as 404.
+
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/students/register` | POST | Create student account |
-| `/api/students/login` | POST | Authenticate and get JWT |
+| `/api/students/register` | POST | Create student account, returns tokens |
+| `/api/students/login` | POST | Authenticate, returns tokens |
+| `/api/students/refresh` | POST | Exchange refresh token for a new pair |
+| `/api/students/me` | GET | Profile of the authenticated student |
 | `/api/sessions/start` | POST | Start learning session |
 | `/api/chat` | POST | Main orchestrator endpoint |
 | `/api/quiz/generate` | POST | Generate adaptive quiz |

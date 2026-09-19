@@ -260,12 +260,14 @@ class TestErrorHandling:
         assert response.status_code == 422
 
     def test_not_found(self, client: TestClient, auth_headers):
-        """Test 404 for non-existent resources."""
+        """Test non-existent resources are not readable."""
         response = client.get(
             "/api/students/nonexistent-id-12345",
             headers=auth_headers
         )
-        assert response.status_code in [404, 401]  # 401 if auth required
+        # 401 without a token; 403 because a student may only read their own
+        # profile, whether or not the requested ID exists.
+        assert response.status_code in [404, 401, 403]
 
     def test_method_not_allowed(self, client: TestClient):
         """Test 405 for wrong HTTP method."""

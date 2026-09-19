@@ -8,7 +8,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session as DBSessionType
 
-from app.api.dependencies import get_db
+from app.api.dependencies import get_current_student, get_db, verify_student_access
 from app.models.student import Student
 from app.models.session import Session as DBSession
 from app.agents.feedback_agent import create_feedback_agent
@@ -22,28 +22,27 @@ logger = logging.getLogger(__name__)
 def get_progress_report(
     student_id: str,
     report_type: ReportType = Query(ReportType.STUDENT, description="Type of report"),
+    current_student: Student = Depends(get_current_student),
     db: DBSessionType = Depends(get_db),
 ):
     """
-    Get progress report for a student.
+    Get the authenticated student's progress report.
 
     Args:
-        student_id: Student ID
+        student_id: Student ID (must be the caller's own)
         report_type: Type of report (student/teacher/data)
+        current_student: Student resolved from the access token
         db: Database session
 
     Returns:
         ProgressReportResponse: Detailed progress report
 
     Raises:
-        HTTPException: 404 if student not found
+        HTTPException: 401 if unauthenticated, 403 if requesting another
+            student's report
     """
-    # Get student
-    student = db.query(Student).filter(Student.id == student_id).first()
-    if not student:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=f"Student {student_id} not found"
-        )
+    verify_student_access(student_id, current_student)
+    student = current_student
 
     # Get or create session for feedback
     active_session = (
@@ -127,20 +126,31 @@ def get_progress_report(
 
 
 @router.post("/request", response_model=ProgressReportResponse)
-def request_feedback(request: FeedbackRequest, db: DBSessionType = Depends(get_db)):
+def request_feedback(
+    request: FeedbackRequest,
+    current_student: Student = Depends(get_current_student),
+    db: DBSessionType = Depends(get_db),
+):
     """
-    Request a customized feedback report.
+    Request a customized feedback report for the authenticated student.
 
     Args:
         request: Feedback request parameters
+        current_student: Student resolved from the access token
         db: Database session
 
     Returns:
         ProgressReportResponse: Generated report
 
     Raises:
-        HTTPException: 404 if student not found
+        HTTPException: 401 if unauthenticated, 403 if requesting another
+            student's report
     """
+    verify_student_access(request.student_id, current_student)
+
     return get_progress_report(
-        student_id=request.student_id, report_type=request.report_type, db=db
+        student_id=request.student_id,
+        report_type=request.report_type,
+        current_student=current_student,
+        db=db,
     )
