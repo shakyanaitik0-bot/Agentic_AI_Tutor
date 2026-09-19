@@ -1,0 +1,101 @@
+/* ──────────────────────────────────────────────────────────────
+   Design tokens.
+   Two themes, one set of names. Everything downstream reads these
+   and never hardcodes a colour.
+   ────────────────────────────────────────────────────────────── */
+
+:root {
+  /* Type ------------------------------------------------------ */
+  --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
+  --font-ui: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+  --step--1: clamp(0.78rem, 0.76rem + 0.1vw, 0.83rem);
+  --step-0:  clamp(0.92rem, 0.89rem + 0.15vw, 1rem);
+  --step-1:  clamp(1.08rem, 1.02rem + 0.3vw, 1.25rem);
+  --step-2:  clamp(1.35rem, 1.22rem + 0.6vw, 1.7rem);
+  --step-3:  clamp(1.7rem, 1.45rem + 1.2vw, 2.4rem);
+  --step-4:  clamp(2.1rem, 1.6rem + 2.4vw, 3.4rem);
+
+  /* Space ----------------------------------------------------- */
+  --s-1: 0.25rem;  --s-2: 0.5rem;   --s-3: 0.75rem;
+  --s-4: 1rem;     --s-5: 1.5rem;   --s-6: 2rem;
+  --s-7: 3rem;     --s-8: 4rem;
+
+  /* Shape ----------------------------------------------------- */
+  --r-sm: 6px;  --r-md: 10px;  --r-lg: 16px;  --r-xl: 24px;  --r-full: 999px;
+
+  /* Motion ---------------------------------------------------- */
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --fast: 120ms var(--ease);
+  --med: 240ms var(--ease);
+
+  /* Frame ----------------------------------------------------- */
+  --rail-w: 72px;
+  --dock-w: 400px;
+}
+
+/* Dark: ink and lamplight — the default. ---------------------- */
+:root,
+:root[data-theme="dark"] {
+  --bg:        #0a0e14;
+  --bg-grain:  rgba(255, 255, 255, 0.015);
+  --surface:   #111823;
+  --surface-2: #17202d;
+  --surface-3: #1e2937;
+  --line:      #24303f;
+  --line-soft: #1a2432;
+
+  --text:      #e8eef5;
+  --text-2:    #a7b4c4;
+  --text-3:    #6b7889;
+
+  --accent:      #f0a93b;   /* lamp amber — the primary voice */
+  --accent-ink:  #1a1206;
+  --accent-soft: rgba(240, 169, 59, 0.14);
+  --accent-line: rgba(240, 169, 59, 0.38);
+
+  --cool:      #4cc3f0;     /* the second voice: data, links */
+  --cool-soft: rgba(76, 195, 240, 0.13);
+
+  --good:      #5ddb92;  --good-soft: rgba(93, 219, 146, 0.14);
+  --warn:      #f5c451;  --warn-soft: rgba(245, 196, 81, 0.14);
+  --bad:       #ff7a7a;  --bad-soft:  rgba(255, 122, 122, 0.14);
+
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-2: 0 10px 30px -12px rgba(0, 0, 0, 0.75);
+  --shadow-3: 0 30px 70px -20px rgba(0, 0, 0, 0.85);
+  --ring: 0 0 0 3px var(--accent-soft);
+}
+
+/* Light: warm paper under a desk lamp. ------------------------ */
+:root[data-theme="light"] {
+  --bg:        #f4f1ea;
+  --bg-grain:  rgba(0, 0, 0, 0.012);
+  --surface:   #fffdf7;
+  --surface-2: #faf7ef;
+  --surface-3: #f1ece0;
+  --line:      #e0d8c8;
+  --line-soft: #ebe4d6;
+
+  --text:      #1d2126;
+  --text-2:    #5a6472;
+  --text-3:    #8a93a1;
+
+  --accent:      #b06a05;
+  --accent-ink:  #fffdf7;
+  --accent-soft: rgba(176, 106, 5, 0.1);
+  --accent-line: rgba(176, 106, 5, 0.32);
+
+  --cool:      #0d7490;
+  --cool-soft: rgba(13, 116, 144, 0.1);
+
+  --good:      #16794a;  --good-soft: rgba(22, 121, 74, 0.1);
+  --warn:      #9a6a00;  --warn-soft: rgba(154, 106, 0, 0.12);
+  --bad:       #b3261e;  --bad-soft:  rgba(179, 38, 30, 0.1);
+
+  --shadow-1: 0 1px 2px rgba(60, 50, 30, 0.08);
+  --shadow-2: 0 10px 26px -14px rgba(60, 50, 30, 0.35);
+  --shadow-3: 0 28px 64px -24px rgba(60, 50, 30, 0.42);
+  --ring: 0 0 0 3px var(--accent-soft);
+}

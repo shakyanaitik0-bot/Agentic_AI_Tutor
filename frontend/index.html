@@ -1,264 +1,53 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agentic AI Tutor</title>
-    <link rel="stylesheet" href="style.css">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<title>Agentic AI Tutor</title>
+<meta name="description" content="Adaptive study console: quizzes, spaced-repetition cards, study plans and a tutor that is always one keystroke away.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>&#128218;</text></svg>">
+<link rel="stylesheet" href="css/tokens.css">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/layout.css">
+<link rel="stylesheet" href="css/components.css">
 </head>
 <body>
-    <div class="container">
-        <!-- Header -->
-        <header>
-            <h1>🎓 Agentic AI Tutor</h1>
-            <p class="subtitle">Adaptive Learning with Multi-Agent AI</p>
-        </header>
 
-        <!-- Login/Registration Section -->
-        <section id="registration-section" class="section">
-            <h2>Welcome to AI Tutor</h2>
-            <p class="subtitle-text">Sign in or create a new account to start learning</p>
+<svg class="sprite" aria-hidden="true">
+  <defs>
+    <symbol id="i-today" viewBox="0 0 24 24"><path d="M12 3v2m0 14v2M3 12h2m14 0h2M5.6 5.6l1.4 1.4m10 10 1.4 1.4m0-12.8-1.4 1.4m-10 10-1.4 1.4"/><circle cx="12" cy="12" r="4"/></symbol>
+    <symbol id="i-quiz" viewBox="0 0 24 24"><path d="M9.1 9a3 3 0 1 1 4 2.8c-.7.3-1.1 1-1.1 1.7v.5"/><circle cx="12" cy="17.5" r=".8" fill="currentColor" stroke="none"/><rect x="3.5" y="3.5" width="17" height="17" rx="4"/></symbol>
+    <symbol id="i-cards" viewBox="0 0 24 24"><rect x="3" y="7" width="13" height="14" rx="3"/><path d="M8 4h9a4 4 0 0 1 4 4v9"/></symbol>
+    <symbol id="i-plan" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4m8-4v4m-8.5 9h3m3 0h3"/></symbol>
+    <symbol id="i-progress" viewBox="0 0 24 24"><path d="M4 19.5V13m5 6.5V7m5 12.5v-9m5 9v-16"/></symbol>
+    <symbol id="i-library" viewBox="0 0 24 24"><path d="M5 4.5h8l6 6v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-13a2 2 0 0 1 2-2Z"/><path d="M13 4.5V10a1 1 0 0 0 1 1h5"/></symbol>
+    <symbol id="i-chat" viewBox="0 0 24 24"><path d="M20.5 12.3a8 8 0 0 1-11.6 7.1L4 20.5l1.2-4.7a8 8 0 1 1 15.3-3.5Z"/></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24"><path d="m4.5 12 15-7.5-4 15-3.5-5.5-7.5-2Z"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2m0 15v2M2.5 12h2m15 0h2M5.2 5.2l1.4 1.4m10.8 10.8 1.4 1.4m0-13.6-1.4 1.4M6.6 17.4l-1.4 1.4"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.2A8.2 8.2 0 0 1 9.8 4 8.5 8.5 0 1 0 20 14.2Z"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></symbol>
+    <symbol id="i-logout" viewBox="0 0 24 24"><path d="M14 4.5H6a1.5 1.5 0 0 0-1.5 1.5v12A1.5 1.5 0 0 0 6 19.5h8"/><path d="m16 8.5 3.5 3.5-3.5 3.5M19 12h-9"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V4.5m0 0L8 8.5m4-4 4 4"/><path d="M4.5 15v3a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-3"/></symbol>
+    <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3.5 13.9 9l5.6 1.9-5.6 1.9L12 18.5 10.1 12.8 4.5 10.9 10.1 9 12 3.5Z"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4.5 7h15M9.5 7V5.5a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1V7m3 0-.8 12a2 2 0 0 1-2 1.9H8.3a2 2 0 0 1-2-1.9L5.5 7"/></symbol>
+  </defs>
+</svg>
 
-            <!-- Step 1: Login Form -->
-            <div id="login-step">
-                <div class="form-group">
-                    <label for="login-email">Email Address</label>
-                    <input type="email" id="login-email" required placeholder="your.email@example.com">
-                </div>
-                <div class="form-group">
-                    <label for="login-password">Password</label>
-                    <input type="password" id="login-password" required placeholder="Enter your password">
-                </div>
-                <button type="button" id="btn-login" class="btn btn-primary">Login</button>
-                <p class="link-text">New user? <a href="#" id="link-register">Create an account</a></p>
-            </div>
+<div id="app" class="app-boot">
+  <div class="boot">
+    <div class="boot-mark" aria-hidden="true"></div>
+    <p>Waking the tutor…</p>
+  </div>
+</div>
 
-            <!-- Step 2: Registration Form (hidden initially) -->
-            <form id="registration-form" class="hidden">
-                <p class="info-text">
-                    Create your account to start learning
-                </p>
+<div id="toasts" class="toasts" role="status" aria-live="polite"></div>
 
-                <div class="form-group">
-                    <label for="student-name">Full Name</label>
-                    <input type="text" id="student-name" required placeholder="Enter your name">
-                </div>
-
-                <div class="form-group">
-                    <label for="student-email">Email Address</label>
-                    <input type="email" id="student-email" required placeholder="your.email@example.com">
-                </div>
-
-                <div class="form-group">
-                    <label for="student-password">Password</label>
-                    <input type="password" id="student-password" required minlength="6" placeholder="Minimum 6 characters">
-                </div>
-
-                <div class="form-group">
-                    <label for="exam-type">Exam Type</label>
-                    <select id="exam-type" required>
-                        <option value="">Select exam...</option>
-                        <option value="JEE">JEE (Joint Entrance Examination)</option>
-                        <option value="SAT">SAT (Scholastic Assessment Test)</option>
-                        <option value="GRE">GRE (Graduate Record Examination)</option>
-                    </select>
-                </div>
-
-                <p class="info-text">
-                    The system will automatically identify your weak and strong areas based on your quiz performance.
-                </p>
-
-                <button type="submit" class="btn btn-primary">Create Account</button>
-                <p class="link-text">Already have an account? <a href="#" id="link-login">Login</a></p>
-            </form>
-        </section>
-
-        <!-- Dashboard Section (hidden initially) -->
-        <section id="dashboard-section" class="section hidden">
-            <div class="student-info">
-                <h2>Welcome, <span id="display-name"></span>!</h2>
-                <p>Exam: <strong id="display-exam"></strong> | Session: <span id="session-status">Not Started</span></p>
-            </div>
-
-            <div class="action-buttons">
-                <button id="btn-start-session" class="btn btn-primary">Start Session</button>
-                <button id="btn-view-progress" class="btn btn-secondary" disabled>View Progress</button>
-                <button id="btn-generate-plan" class="btn btn-secondary" disabled>Generate Study Plan</button>
-                <button id="btn-end-session" class="btn btn-danger hidden">End Session</button>
-            </div>
-
-            <!-- Tab Navigation -->
-            <div id="tab-navigation" class="tab-nav hidden">
-                <button class="tab-btn active" data-tab="chat">💬 Chat</button>
-                <button class="tab-btn" data-tab="quiz">📝 Quiz</button>
-                <button class="tab-btn" data-tab="flashcards">🎴 Flashcards</button>
-                <button class="tab-btn" data-tab="progress">📊 Progress</button>
-                <button class="tab-btn" data-tab="plan">📅 Study Plan</button>
-                <button class="tab-btn" data-tab="documents">📚 My Documents</button>
-            </div>
-
-            <!-- Tab Content Container -->
-            <div id="tab-content" class="hidden">
-                <!-- Chat Tab -->
-                <div id="tab-chat" class="tab-content active">
-                    <div id="chat-messages" class="chat-messages">
-                        <div class="message assistant-message">
-                            <strong>AI Tutor:</strong> Hello! I'm your adaptive AI tutor. I'll help you learn effectively by:
-                            <ul>
-                                <li>Understanding your knowledge gaps through interactive quizzes</li>
-                                <li>Providing personalized study plans based on your performance</li>
-                                <li>Retrieving relevant learning materials when you need help</li>
-                                <li>Adapting to your learning pace and style</li>
-                            </ul>
-                            Try: "I'm struggling with Probability" or "Generate a quiz on Calculus" or "Show my progress"
-                        </div>
-                    </div>
-
-                    <div class="chat-input-container">
-                        <input type="text" id="chat-input" placeholder="Ask me anything about your studies..." disabled>
-                        <button id="btn-send-message" class="btn btn-primary" disabled>Send</button>
-                    </div>
-                </div>
-
-                <!-- Quiz Tab -->
-                <div id="tab-quiz" class="tab-content">
-                    <div id="quiz-container">
-                        <div class="empty-state">
-                            <p>No active quiz. Request a quiz through chat or use "Generate Study Plan" to get started!</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Flashcards Tab -->
-                <div id="tab-flashcards" class="tab-content">
-                    <div class="section">
-                        <h3>Generate Flashcards</h3>
-                        <p class="info-text">Create AI-generated flashcards from your documents or any topic. Uses spaced repetition for optimal learning!</p>
-
-                        <form id="flashcard-generate-form">
-                            <div class="form-group">
-                                <label for="flashcard-topic">Topic</label>
-                                <input type="text" id="flashcard-topic" required placeholder="e.g., Calculus Derivatives, Organic Chemistry, World War II">
-                            </div>
-
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="flashcard-count">Number of Cards</label>
-                                    <select id="flashcard-count">
-                                        <option value="5">5 cards</option>
-                                        <option value="10" selected>10 cards</option>
-                                        <option value="15">15 cards</option>
-                                        <option value="20">20 cards</option>
-                                    </select>
-                                </div>
-
-                                <div class="form-group">
-                                    <label for="flashcard-difficulty">Difficulty</label>
-                                    <select id="flashcard-difficulty">
-                                        <option value="easy">Easy</option>
-                                        <option value="medium" selected>Medium</option>
-                                        <option value="hard">Hard</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div class="form-group">
-                                <label class="checkbox-label">
-                                    <input type="checkbox" id="flashcard-use-docs" checked>
-                                    Use my uploaded documents for context
-                                </label>
-                            </div>
-
-                            <button type="submit" class="btn btn-primary">🎴 Generate Flashcards</button>
-                        </form>
-                    </div>
-
-                    <div class="section">
-                        <h3>My Flashcard Decks</h3>
-                        <div id="flashcard-decks">
-                            <div class="empty-state">
-                                <p>No flashcard decks yet. Generate your first deck above!</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div id="flashcard-study-area" class="section hidden">
-                        <h3>Study Session</h3>
-                        <div id="flashcard-card-display">
-                            <!-- Active flashcard will be displayed here -->
-                        </div>
-                    </div>
-
-                    <div class="section">
-                        <h3>Flashcard Statistics</h3>
-                        <div id="flashcard-stats">
-                            <div class="empty-state">
-                                <p>Start studying to see your statistics!</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Progress Tab -->
-                <div id="tab-progress" class="tab-content">
-                    <div id="progress-container">
-                        <div class="empty-state">
-                            <p>No progress data yet. Take some quizzes to see your performance analysis!</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Study Plan Tab -->
-                <div id="tab-plan" class="tab-content">
-                    <div id="plan-container">
-                        <div class="empty-state">
-                            <p>No study plan yet. Click "Generate Study Plan" or ask me to create one!</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Documents Tab -->
-                <div id="tab-documents" class="tab-content">
-                    <div class="section">
-                        <h3>Upload Study Materials</h3>
-                        <p class="info-text">Upload your own study materials (PDF, TXT, DOCX) to personalize quiz generation and get better context-aware help!</p>
-
-                        <form id="document-upload-form">
-                            <div class="form-group">
-                                <label for="document-file">Select File (PDF, TXT, DOCX - Max 10MB)</label>
-                                <input type="file" id="document-file" accept=".pdf,.txt,.docx,.doc,.md" required>
-                            </div>
-
-                            <div class="form-group">
-                                <label for="document-subject">Subject/Topic (Optional)</label>
-                                <input type="text" id="document-subject" placeholder="e.g., Calculus, Physics, Chemistry">
-                            </div>
-
-                            <button type="submit" class="btn btn-primary">📤 Upload Document</button>
-                        </form>
-
-                        <div id="upload-status" class="hidden"></div>
-                    </div>
-
-                    <div class="section">
-                        <h3>My Uploaded Documents</h3>
-                        <div id="documents-list">
-                            <div class="empty-state">
-                                <p>No documents uploaded yet. Upload your first study material above!</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Loading Overlay -->
-        <div id="loading-overlay" class="hidden">
-            <div class="spinner"></div>
-            <p>Processing...</p>
-        </div>
-    </div>
-
-    <script src="app.js"></script>
+<script type="module" src="js/main.js"></script>
+<noscript>
+  <p style="padding:2rem;font:1rem system-ui">This console needs JavaScript. The API itself is browsable at <a href="/docs">/docs</a>.</p>
+</noscript>
 </body>
 </html>
