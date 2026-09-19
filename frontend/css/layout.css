@@ -1,0 +1,212 @@
+/* ──────────────────────────────────────────────────────────────
+   The shell.
+
+   Desktop:  [ rail 72px ][ workspace 1fr ][ tutor dock 400px ]
+   Tablet:   the dock collapses to an overlay panel.
+   Phone:    the rail becomes a bottom bar, the dock a full sheet.
+
+   The point of the layout: the tutor is never a place you navigate
+   to. It sits beside whatever you are doing.
+   ────────────────────────────────────────────────────────────── */
+
+.app-boot { display: grid; place-items: center; height: 100dvh; }
+.boot { display: grid; gap: var(--s-4); justify-items: center; color: var(--text-3); }
+.boot-mark {
+  width: 46px; height: 46px; border-radius: var(--r-md);
+  background: linear-gradient(140deg, var(--accent), var(--cool));
+  animation: breathe 2.4s var(--ease) infinite;
+}
+@keyframes breathe { 0%, 100% { opacity: 0.35; transform: scale(0.92) rotate(-4deg); } 50% { opacity: 1; transform: scale(1) rotate(4deg); } }
+
+.shell {
+  display: grid;
+  grid-template-columns: var(--rail-w) minmax(0, 1fr) var(--dock-w);
+  height: 100dvh;
+}
+
+/* Rail ───────────────────────────────────────────────────────── */
+.rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-4) var(--s-2);
+  border-right: 1px solid var(--line-soft);
+  background: var(--surface);
+  z-index: 20;
+}
+
+.rail-mark {
+  display: grid; place-items: center;
+  width: 40px; height: 40px; margin-bottom: var(--s-3);
+  border-radius: var(--r-md);
+  font-family: var(--font-display); font-size: 1.15rem; font-weight: 700;
+  color: var(--accent-ink);
+  background: linear-gradient(140deg, var(--accent), #e0832a);
+  box-shadow: var(--shadow-1);
+}
+
+.rail-btn {
+  position: relative;
+  display: grid; place-items: center;
+  width: 48px; height: 44px;
+  border-radius: var(--r-md);
+  color: var(--text-3);
+  transition: color var(--fast), background var(--fast);
+}
+.rail-btn svg { width: 21px; height: 21px; }
+.rail-btn:hover { color: var(--text); background: var(--surface-3); }
+.rail-btn[aria-current="page"] { color: var(--accent); background: var(--accent-soft); }
+.rail-btn[aria-current="page"]::before {
+  content: ""; position: absolute; left: -10px; top: 50%;
+  width: 3px; height: 20px; border-radius: var(--r-full);
+  background: var(--accent); transform: translateY(-50%);
+}
+.rail-btn .badge {
+  position: absolute; top: 4px; right: 4px;
+  min-width: 17px; height: 17px; padding: 0 4px;
+  display: grid; place-items: center;
+  font-family: var(--font-mono); font-size: 10px; font-weight: 700;
+  color: var(--accent-ink); background: var(--accent);
+  border-radius: var(--r-full);
+}
+.rail-spacer { flex: 1; }
+.rail-tip {
+  position: absolute; left: calc(100% + 10px);
+  padding: 4px 9px; border-radius: var(--r-sm);
+  font-size: var(--step--1); white-space: nowrap;
+  color: var(--text); background: var(--surface-3);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-2);
+  opacity: 0; transform: translateX(-4px); pointer-events: none;
+  transition: opacity var(--fast), transform var(--fast);
+  z-index: 40;
+}
+.rail-btn:hover .rail-tip, .rail-btn:focus-visible .rail-tip { opacity: 1; transform: translateX(0); }
+
+/* Workspace ──────────────────────────────────────────────────── */
+.workspace { display: grid; grid-template-rows: auto minmax(0, 1fr); min-width: 0; }
+
+.topbar {
+  display: flex; align-items: center; gap: var(--s-4);
+  padding: var(--s-4) var(--s-6);
+  border-bottom: 1px solid var(--line-soft);
+  background: color-mix(in srgb, var(--bg) 78%, transparent);
+  backdrop-filter: blur(10px);
+}
+.topbar h1 { font-size: var(--step-1); }
+.topbar-sub { font-size: var(--step--1); color: var(--text-3); }
+
+.pane { padding: var(--s-6); }
+.pane-inner { max-width: 62rem; margin-inline: auto; }
+.pane-wide .pane-inner { max-width: 78rem; }
+
+/* Tutor dock ─────────────────────────────────────────────────── */
+.dock {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  min-width: 0;
+  border-left: 1px solid var(--line-soft);
+  background: var(--surface);
+}
+.dock-head {
+  display: flex; align-items: center; gap: var(--s-3);
+  padding: var(--s-4) var(--s-4) var(--s-3);
+  border-bottom: 1px solid var(--line-soft);
+}
+.dock-body { padding: var(--s-4); display: flex; flex-direction: column; gap: var(--s-4); }
+.dock-foot { padding: var(--s-3) var(--s-4) var(--s-4); border-top: 1px solid var(--line-soft); }
+
+.dock-toggle { display: none; }
+.dock-scrim { display: none; }
+
+/* Auth screen ────────────────────────────────────────────────── */
+.auth {
+  display: grid;
+  grid-template-columns: 1.05fr 1fr;
+  height: 100dvh;
+}
+.auth-art {
+  position: relative; overflow: hidden;
+  display: flex; flex-direction: column; justify-content: space-between;
+  padding: var(--s-7);
+  background: var(--surface);
+  border-right: 1px solid var(--line-soft);
+}
+.auth-art::after {
+  content: ""; position: absolute; inset: 0;
+  background:
+    radial-gradient(60% 50% at 20% 15%, var(--accent-soft), transparent 70%),
+    radial-gradient(50% 45% at 85% 80%, var(--cool-soft), transparent 70%);
+  pointer-events: none;
+}
+.auth-art > * { position: relative; z-index: 1; }
+.auth-form-wrap { display: grid; place-items: center; padding: var(--s-6); overflow-y: auto; }
+.auth-form { width: min(26rem, 100%); }
+
+.auth-claim { font-size: var(--step-4); max-width: 12ch; }
+.auth-claim em { font-style: normal; color: var(--accent); }
+
+.auth-points { display: grid; gap: var(--s-4); max-width: 34ch; }
+.auth-point { display: grid; grid-template-columns: auto 1fr; gap: var(--s-3); align-items: start; }
+.auth-point svg { width: 18px; height: 18px; margin-top: 3px; color: var(--accent); }
+.auth-point strong { display: block; font-weight: 600; }
+.auth-point span { font-size: var(--step--1); color: var(--text-2); }
+
+/* Responsive ─────────────────────────────────────────────────── */
+@media (max-width: 1180px) {
+  .shell { grid-template-columns: var(--rail-w) minmax(0, 1fr); }
+  .dock {
+    position: fixed; inset-block: 0; right: 0;
+    width: min(var(--dock-w), 100vw);
+    border-left: 1px solid var(--line);
+    box-shadow: var(--shadow-3);
+    transform: translateX(101%);
+    transition: transform var(--med);
+    z-index: 60;
+  }
+  .shell[data-dock="open"] .dock { transform: none; }
+  .shell[data-dock="open"] .dock-scrim {
+    display: block; position: fixed; inset: 0;
+    background: rgba(0, 0, 0, 0.45); z-index: 50;
+  }
+  .dock-toggle {
+    position: fixed; right: var(--s-5); bottom: var(--s-5);
+    display: grid; place-items: center;
+    width: 54px; height: 54px; border-radius: var(--r-full);
+    color: var(--accent-ink); background: var(--accent);
+    box-shadow: var(--shadow-2);
+    z-index: 45;
+  }
+  .dock-toggle svg { width: 23px; height: 23px; }
+  .dock-toggle .badge {
+    position: absolute; top: -2px; right: -2px;
+    width: 14px; height: 14px; border-radius: var(--r-full);
+    background: var(--cool); border: 2px solid var(--bg);
+  }
+  .shell[data-dock="open"] .dock-toggle { display: none; }
+}
+
+@media (max-width: 720px) {
+  :root { --rail-w: 0px; }
+  .shell { grid-template-columns: minmax(0, 1fr); padding-bottom: 62px; }
+  .rail {
+    position: fixed; inset-inline: 0; bottom: 0;
+    flex-direction: row; justify-content: space-around;
+    height: 62px; padding: 0 var(--s-2);
+    border-right: 0; border-top: 1px solid var(--line);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .rail-mark, .rail-spacer, .rail-tip { display: none; }
+  .rail-btn { width: 44px; height: 42px; }
+  .rail-btn[aria-current="page"]::before { left: 50%; top: -1px; width: 20px; height: 3px; transform: translateX(-50%); }
+  /* `!important` because .btn sets its own display from a later sheet. */
+  .rail-only-desktop { display: none !important; }
+  .topbar { padding: var(--s-3) var(--s-4); }
+  .pane { padding: var(--s-4) var(--s-4) var(--s-7); }
+  .dock { width: 100vw; }
+  .dock-toggle { bottom: calc(62px + var(--s-4)); right: var(--s-4); }
+  .toasts { bottom: calc(62px + var(--s-3)); }
+  .auth { grid-template-columns: 1fr; }
+  .auth-art { display: none; }
+}

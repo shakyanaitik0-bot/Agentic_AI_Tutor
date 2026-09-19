@@ -116,3 +116,7 @@ tmp/
 docs/
 FIXES.md
 INTERVIEW_PREP.md
+
+# The Python build-artifact rules above would otherwise swallow the
+# frontend module directory, which is source, not build output.
+!frontend/js/lib/
