@@ -21,6 +21,9 @@
 .shell {
   display: grid;
   grid-template-columns: var(--rail-w) minmax(0, 1fr) var(--dock-w);
+  /* An explicit row, or the implicit `auto` one grows to fit the content
+     and the workspace never hands its scroller a bounded height. */
+  grid-template-rows: minmax(0, 100%);
   height: 100dvh;
 }
 
@@ -85,7 +88,12 @@
 .rail-btn:hover .rail-tip, .rail-btn:focus-visible .rail-tip { opacity: 1; transform: translateX(0); }
 
 /* Workspace ──────────────────────────────────────────────────── */
-.workspace { display: grid; grid-template-rows: auto minmax(0, 1fr); min-width: 0; }
+.workspace { display: grid; grid-template-rows: auto minmax(0, 1fr); min-width: 0; overflow: hidden; }
+
+/* The pane host passes grid sizing through to the view's own scroller,
+   so a long workspace scrolls itself rather than overflowing the shell. */
+.pane-host { display: contents; }
+#pane { display: grid; min-height: 0; }
 
 .topbar {
   display: flex; align-items: center; gap: var(--s-4);
@@ -97,7 +105,7 @@
 .topbar h1 { font-size: var(--step-1); }
 .topbar-sub { font-size: var(--step--1); color: var(--text-3); }
 
-.pane { padding: var(--s-6); }
+.pane { padding: var(--s-6); min-height: 0; }
 .pane-inner { max-width: 62rem; margin-inline: auto; }
 .pane-wide .pane-inner { max-width: 78rem; }
 

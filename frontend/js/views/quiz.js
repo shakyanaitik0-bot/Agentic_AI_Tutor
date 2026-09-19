@@ -245,6 +245,7 @@ async function generate(host, form) {
 }
 
 function bindKeys(host) {
+  if (!host.isConnected) return;   // a stale async render, not the live pane
   unbindKeys();
   keyHandler = (event) => {
     if (!state.quiz || state.quizResult) return;

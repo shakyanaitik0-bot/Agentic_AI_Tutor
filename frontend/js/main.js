@@ -31,7 +31,7 @@ const BY_ID = new Map(VIEWS.map((view) => [view.meta.id, view]));
 
 const root = document.getElementById('app');
 let current = null;         // the mounted view module
-let paneHost = null;
+let paneRoot = null;
 
 /* ── routing ──────────────────────────────────────────────────── */
 
@@ -63,7 +63,14 @@ function mountView(id, payload) {
     $('#topbar-sub').textContent = view.meta.subtitle;
   }
 
-  view.mount(paneHost, payload);
+  // A fresh host per mount: a request that resolves after the user has
+  // navigated away then paints into a detached node instead of over the
+  // workspace they are now looking at.
+  const host = document.createElement('div');
+  host.className = 'pane-host';
+  paneRoot.replaceChildren(host);
+
+  view.mount(host, payload);
   if (window.innerWidth <= 720) emit('dock:close');
 }
 
@@ -171,7 +178,7 @@ function drawShell() {
   const activeId = current?.meta?.id || viewFromHash();
   render(root, shell());
   root.classList.remove('app-boot');
-  paneHost = $('#pane');
+  paneRoot = $('#pane');
   wireShell();
   mountDock($('#dock'));
   buildCommands();
