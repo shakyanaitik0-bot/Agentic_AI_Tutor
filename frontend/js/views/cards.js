@@ -6,7 +6,7 @@
  * honest, so revealing is a real request and the card says so.
  */
 
-import { html, render, raw, icon, $, $$ } from '../lib/dom.js';
+import { html, render, raw, icon, $, $$, setBusy, clearBusy } from '../lib/dom.js';
 import { api } from '../lib/api.js';
 import { state, set } from '../lib/store.js';
 import { toast, toastErr } from '../ui/toast.js';
@@ -278,8 +278,7 @@ async function generate(host, form) {
   if (!data.topic || !String(data.topic).trim()) return toastErr(new Error('Give the deck a topic first.'));
 
   const button = $('[data-submit]', form);
-  button.disabled = true;
-  button.innerHTML = '<span class="spinner"></span> Writing cards…';
+  setBusy(button, 'Writing cards…');
 
   try {
     const deck = await api.flashcards.generate(state.student.id, {
@@ -293,8 +292,7 @@ async function generate(host, form) {
     draw(host);
   } catch (error) {
     toastErr(error);
-    button.disabled = false;
-    button.textContent = 'Generate deck';
+    clearBusy(button, 'Generate deck');
   }
 }
 

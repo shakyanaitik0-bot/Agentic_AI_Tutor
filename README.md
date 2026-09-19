@@ -165,8 +165,11 @@ the rail becomes a bottom bar and the tutor a sheet.
 | `0`–`5` | Grade the flipped card (SM-2) |
 | `Esc` | Leave a card review |
 
-To point the console at an API on another host, open it with
-`?api=https://host/api` once; the choice is remembered.
+To point the console at an API on a different port, open it with
+`?api=http://localhost:9000/api` once; the choice is remembered. Only
+this page's own origin or a loopback address is accepted — every request
+carries the student's credentials, so an arbitrary `?api=` in a link
+would be a way to harvest them.
 
 ### Docker Deployment
 

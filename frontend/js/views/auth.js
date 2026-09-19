@@ -6,7 +6,7 @@
  * the right panel is the shortest form that will do.
  */
 
-import { html, render, raw, icon, $, escapeHtml } from '../lib/dom.js';
+import { html, render, raw, icon, $, setBusy, clearBusy } from '../lib/dom.js';
 import { api } from '../lib/api.js';
 import { toastErr } from '../ui/toast.js';
 
@@ -125,11 +125,8 @@ function registerForm() {
 /** Swap a submit button into a spinner while a request is in flight. */
 function busy(form, isBusy, label) {
   const button = $('[data-submit]', form);
-  if (!button) return;
-  button.disabled = isBusy;
-  button.innerHTML = isBusy
-    ? '<span class="spinner"></span> Working…'
-    : escapeHtml(label);
+  if (isBusy) setBusy(button, 'Working…');
+  else clearBusy(button, label);
 }
 
 /**

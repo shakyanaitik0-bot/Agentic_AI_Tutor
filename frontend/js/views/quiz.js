@@ -7,7 +7,7 @@
  * explanations live.
  */
 
-import { html, render, raw, icon, $, $$ } from '../lib/dom.js';
+import { html, render, raw, icon, $, $$, setBusy, clearBusy } from '../lib/dom.js';
 import { api } from '../lib/api.js';
 import { state, set } from '../lib/store.js';
 import { toastErr, toast } from '../ui/toast.js';
@@ -201,7 +201,7 @@ function choose(index) {
 
 async function submit(host) {
   const button = $('[data-act="submit"]', host);
-  if (button) { button.disabled = true; button.innerHTML = '<span class="spinner"></span> Grading…'; }
+  setBusy(button, 'Grading…');
   try {
     const result = await api.quiz.submit({
       quizId: state.quiz.quiz_id,
@@ -213,7 +213,7 @@ async function submit(host) {
     draw(host);
   } catch (error) {
     toastErr(error);
-    if (button) { button.disabled = false; button.textContent = 'Submit quiz'; }
+    clearBusy(button, 'Submit quiz');
   }
 }
 
@@ -224,8 +224,7 @@ async function generate(host, form) {
   }
 
   const button = $('[data-submit]', form);
-  button.disabled = true;
-  button.innerHTML = '<span class="spinner"></span> Writing questions…';
+  setBusy(button, 'Writing questions…');
 
   try {
     const quiz = await api.quiz.generate({
@@ -239,8 +238,7 @@ async function generate(host, form) {
     draw(host);
   } catch (error) {
     toastErr(error);
-    button.disabled = false;
-    button.textContent = 'Generate quiz';
+    clearBusy(button, 'Generate quiz');
   }
 }
 

@@ -5,30 +5,66 @@
  * depends on is one file long and easy to diff against the backend.
  *
  * Base URL resolution, in order:
- *   1. ?api=<url> in the address bar (handy when the API is remote)
- *   2. a previously remembered override
- *   3. same origin, when the page is served by the API itself
- *   4. http://127.0.0.1:8000/api, for opening index.html off disk
+ *   1. ?api=<url> in the address bar, or a previously remembered one
+ *   2. same origin, when the page is served by the API itself
+ *   3. http://127.0.0.1:8000/api, for opening index.html off disk
+ *
+ * The override is deliberately restricted to the page's own origin or a
+ * loopback address. Every request carries the student's credentials —
+ * the password on login, the bearer token after — so an unrestricted
+ * `?api=` would turn a link like `/app/?api=https://elsewhere/api` into
+ * a credential-exfiltration primitive, and a remembered one would keep
+ * exfiltrating long after the link was clicked.
  */
 
 const OVERRIDE_KEY = 'tutor.apiBase';
 const TOKEN_KEY = 'tutor.token';
 
-function resolveBase() {
-  const fromQuery = new URLSearchParams(location.search).get('api');
-  if (fromQuery) {
-    try { localStorage.setItem(OVERRIDE_KEY, fromQuery); } catch { /* private mode */ }
-    return fromQuery.replace(/\/$/, '');
-  }
-  try {
-    const saved = localStorage.getItem(OVERRIDE_KEY);
-    if (saved) return saved.replace(/\/$/, '');
-  } catch { /* private mode */ }
+const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]', '::1']);
 
-  if (location.protocol === 'http:' || location.protocol === 'https:') {
-    return `${location.origin}/api`;
+const sameOriginDefault = () =>
+  (location.protocol === 'http:' || location.protocol === 'https:')
+    ? `${location.origin}/api`
+    : 'http://127.0.0.1:8000/api';
+
+/** Return a trimmed base URL if it is somewhere we are willing to send credentials. */
+function acceptableBase(candidate) {
+  let url;
+  try {
+    url = new URL(candidate, location.href);
+  } catch {
+    return null;
   }
-  return 'http://127.0.0.1:8000/api';
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
+  if (url.origin !== location.origin && !LOOPBACK_HOSTS.has(url.hostname)) return null;
+  return `${url.origin}${url.pathname}`.replace(/\/$/, '');
+}
+
+function resolveBase() {
+  const requested = new URLSearchParams(location.search).get('api');
+
+  if (requested) {
+    const accepted = acceptableBase(requested);
+    if (!accepted) {
+      console.warn(`Ignoring ?api=${requested}: only this origin or a loopback address is allowed.`);
+      try { localStorage.removeItem(OVERRIDE_KEY); } catch { /* private mode */ }
+      return sameOriginDefault();
+    }
+    try { localStorage.setItem(OVERRIDE_KEY, accepted); } catch { /* private mode */ }
+    return accepted;
+  }
+
+  let saved = null;
+  try { saved = localStorage.getItem(OVERRIDE_KEY); } catch { /* private mode */ }
+  if (saved) {
+    // Re-check on every load: what was acceptable when it was stored may
+    // not be now, and storage is writable by anything running on the page.
+    const accepted = acceptableBase(saved);
+    if (accepted) return accepted;
+    try { localStorage.removeItem(OVERRIDE_KEY); } catch { /* private mode */ }
+  }
+
+  return sameOriginDefault();
 }
 
 export const API_BASE = resolveBase();

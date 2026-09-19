@@ -6,7 +6,7 @@
  * They answer different questions, so they get different shapes.
  */
 
-import { html, render, raw, icon, $, $$ } from '../lib/dom.js';
+import { html, render, raw, icon, $, $$, setBusy, clearBusy } from '../lib/dom.js';
 import { api } from '../lib/api.js';
 import { state, set } from '../lib/store.js';
 import { toast, toastErr } from '../ui/toast.js';
@@ -170,8 +170,7 @@ function planScreen() {
 async function generate(host, formEl) {
   const data = Object.fromEntries(new FormData(formEl));
   const button = $('[data-submit]', formEl);
-  button.disabled = true;
-  button.innerHTML = '<span class="spinner"></span> Planning…';
+  setBusy(button, 'Planning…');
 
   try {
     const plan = await api.plan.generate({
@@ -186,8 +185,7 @@ async function generate(host, formEl) {
     draw(host);
   } catch (error) {
     toastErr(error);
-    button.disabled = false;
-    button.textContent = 'Generate plan';
+    clearBusy(button, 'Generate plan');
   }
 }
 
