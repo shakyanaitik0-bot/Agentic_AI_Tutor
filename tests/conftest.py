@@ -9,28 +9,27 @@ Provides:
 """
 import os
 import sys
-import pytest
-from typing import Generator, Dict, Any
-from datetime import datetime
 import uuid
+from typing import Dict, Generator
+
+import pytest
 
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app.main import app
 from app.api.dependencies import get_db
 from app.core.database import Base, get_database
-from app.models.student import Student
-from app.models.session import Session as DBSession
+from app.core.security import create_tokens, get_password_hash
+from app.main import app
 from app.models.progress import Progress
 from app.models.quiz import Quiz
-from app.core.security import create_tokens, get_password_hash
-
+from app.models.session import Session as DBSession
+from app.models.student import Student
 
 # ============================================================================
 # Database Fixtures
@@ -67,7 +66,7 @@ def test_db() -> Generator[Session, None, None]:
 
 
 @pytest.fixture(scope="function")
-def client(test_db: Session) -> Generator[TestClient, None, None]:
+def client(test_db: Session, monkeypatch: pytest.MonkeyPatch) -> Generator[TestClient, None, None]:
     """
     Create a test client with overridden database dependency.
     """
@@ -81,6 +80,11 @@ def client(test_db: Session) -> Generator[TestClient, None, None]:
     # test client never touches the real SQLite file.
     app.dependency_overrides[get_database] = override_get_db
     app.dependency_overrides[get_db] = override_get_db
+
+    # Entering the client runs the app's lifespan, which creates the schema on
+    # the configured database. Tests bring their own in-memory schema, so stub
+    # it out rather than let a test run leave data/tutor_app.db behind.
+    monkeypatch.setattr("app.main.init_database", lambda: None)
 
     with TestClient(app) as c:
         yield c

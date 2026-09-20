@@ -14,6 +14,7 @@ Supports multiple flashcard types:
 - Concept mapping cards
 """
 
+import asyncio
 import logging
 import json
 import re
@@ -22,7 +23,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 
-from app.agents.base_agent import BaseAgent, AgentResponse
+from app.agents.base_agent import AgentResponse
 from app.services.llm_service import get_llm_service
 from app.services.unified_retrieval_service import get_unified_retrieval_service
 from app.core.config import settings
@@ -134,7 +135,7 @@ class FlashcardDeck:
         return [c for c in self.cards if c.next_review is None or c.next_review <= now]
 
 
-class FlashcardAgent(BaseAgent):
+class FlashcardAgent:
     """
     Agent for generating and managing study flashcards.
 
@@ -143,13 +144,17 @@ class FlashcardAgent(BaseAgent):
     - Create topic-specific decks
     - Support multiple card types
     - Include citations for source material
+
+    Unlike the other agents this one does not extend BaseAgent: it is a
+    process-wide singleton driven straight from the flashcards route, so it has
+    no Student or Session to bind to and takes the topic as an argument
+    instead.
     """
 
+    name = "FlashcardAgent"
+    description = "Generates study flashcards with spaced repetition support"
+
     def __init__(self):
-        super().__init__(
-            name="FlashcardAgent",
-            description="Generates study flashcards with spaced repetition support"
-        )
         self.llm_service = None
         self.retrieval_service = None
 
@@ -193,7 +198,10 @@ class FlashcardAgent(BaseAgent):
             citations = []
 
             if use_documents or context is None:
-                retrieval_response = self.retrieval_service.retrieve(
+                # Retrieval does blocking I/O (embeddings, web search), so it
+                # runs off the event loop
+                retrieval_response = await asyncio.to_thread(
+                    self.retrieval_service.retrieve,
                     query=f"Key concepts, definitions, and formulas about {topic}",
                     student_id=student_id,
                     topic=topic,
@@ -395,7 +403,6 @@ Generate exactly {num_cards} cards as a JSON array:"""
             List of FlashcardDeck objects
         """
         decks = []
-        import asyncio
 
         for topic in weak_areas[:5]:  # Limit to 5 topics
             try:

@@ -11,6 +11,7 @@ Provides foundational agent capabilities:
 
 import logging
 from typing import Dict, Any, Optional, List
+from dataclasses import dataclass, field
 from datetime import datetime
 from abc import ABC, abstractmethod
 
@@ -20,6 +21,31 @@ from app.models.student import Student
 from app.models.session import Session
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class AgentResponse:
+    """
+    Standard envelope for an agent result.
+
+    Agents that are invoked directly by an API route (rather than through the
+    orchestrator) return this instead of a bare dict, so callers can branch on
+    ``success`` without guessing at the payload shape.
+    """
+
+    success: bool
+    message: str = ""
+    data: Optional[Any] = None
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert the response to a JSON-serialisable dictionary"""
+        return {
+            "success": self.success,
+            "message": self.message,
+            "data": self.data,
+            "metadata": self.metadata,
+        }
 
 
 class AgentState:

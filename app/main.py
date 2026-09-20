@@ -10,17 +10,18 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Request, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.exceptions import RequestValidationError
 
-from app.core.config import settings
-from app.core.security import check_jwt_secret
 from app.api import api_router
+from app.core.config import settings
+from app.core.database import init_database
+from app.core.security import check_jwt_secret
 
 # Import all models to ensure SQLAlchemy relationships are resolved
-from app.models import Student, Session, Progress, Quiz, FlashcardDeck, Flashcard  # noqa: F401
+from app.models import Flashcard, FlashcardDeck, Progress, Quiz, Session, Student  # noqa: F401
 
 # Configure logging
 logging.basicConfig(
@@ -36,7 +37,13 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting Agentic AI Tutor API...")
     check_jwt_secret()
-    logger.info(f"Configuration loaded from config.yaml")
+
+    # Create the schema if it is not there yet. create_all() is a no-op once
+    # the tables exist, so this only matters on a fresh checkout: without it
+    # the first request to touch the database fails with "no such table",
+    # which reaches the browser as an opaque 500.
+    init_database()
+    logger.info("Configuration loaded from config.yaml")
     logger.info(f"LLM Provider: {settings.get('llm.provider')}")
     logger.info(f"Embedding Provider: {settings.get('embeddings.provider')}")
 
@@ -94,7 +101,9 @@ async def global_exception_handler(request: Request, exc: Exception):
         content={
             "error": "InternalServerError",
             "message": "An unexpected error occurred",
-            "details": str(exc) if settings.get("debug", False) else None,
+            # The flag lives at app.debug; "debug" reads nothing, so the
+            # cause used to be withheld even in development.
+            "details": str(exc) if settings.get("app.debug", False) else None,
         },
     )
 

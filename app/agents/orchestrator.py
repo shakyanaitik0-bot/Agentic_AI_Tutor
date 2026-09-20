@@ -60,7 +60,10 @@ class OrchestratorAgent(BaseAgent):
         super().__init__(agent_name="Orchestrator", student=student, session=session, **kwargs)
         self.db = db
 
-        # Initialize specialized agents (lazy loaded)
+        # Initialize specialized agents (lazy loaded). They are handed this
+        # orchestrator's LLM and RAG services rather than building their own:
+        # a fresh RAGService reloads the embedding model and reconnects to
+        # Pinecone on every request.
         self._planner_agent: Optional[PlannerAgent] = None
         self._quiz_agent: Optional[QuizGeneratorAgent] = None
         self._feedback_agent: Optional[FeedbackAgent] = None
@@ -76,6 +79,10 @@ class OrchestratorAgent(BaseAgent):
                 r"organize.*study",
                 r"plan.*exam",
                 r"prepare.*strategy",
+                # "build me a 30-day plan", "make a revision plan", "draw up a plan"
+                r"(build|make|give|draft|design|draw up|put together|need|want).{0,30}\bplans?\b",
+                r"\d+[\s-]?day.{0,20}\b(plan|prep|schedule|roadmap)\b",
+                r"roadmap",
             ],
             IntentType.QUIZ: [
                 r"quiz",
@@ -147,12 +154,16 @@ class OrchestratorAgent(BaseAgent):
             return response
 
         except Exception as e:
-            logger.error(f"[Orchestrator] Error processing request: {e}")
+            # exc_info so the traceback reaches the log: the message below is all
+            # the user gets, and "please try again" is useless when the cause is
+            # a misconfigured provider that will fail identically next time.
+            logger.error(f"[Orchestrator] Error processing request: {e}", exc_info=True)
+            detail = f"{type(e).__name__}: {e}"
             return {
                 "agent": "Orchestrator",
                 "intent": intent.value,
-                "error": str(e),
-                "message": "I encountered an error processing your request. Please try again.",
+                "error": detail,
+                "message": f"I could not complete that request. {detail}",
             }
 
     def _classify_intent(self, user_input: str, **kwargs) -> IntentType:
@@ -240,7 +251,11 @@ Return ONLY the category name (PLAN, QUIZ, FEEDBACK, or CONVERSATION) with no ex
         # Lazy load Planner Agent
         if not self._planner_agent:
             self._planner_agent = PlannerAgent(
-                student=self.student, session=self.session, db=self.db
+                student=self.student,
+                session=self.session,
+                db=self.db,
+                llm_service=self.llm,
+                rag_service=self.rag,
             )
 
         # Execute planner
@@ -264,7 +279,11 @@ Return ONLY the category name (PLAN, QUIZ, FEEDBACK, or CONVERSATION) with no ex
         # Lazy load Quiz Agent
         if not self._quiz_agent:
             self._quiz_agent = QuizGeneratorAgent(
-                student=self.student, session=self.session, db=self.db
+                student=self.student,
+                session=self.session,
+                db=self.db,
+                llm_service=self.llm,
+                rag_service=self.rag,
             )
 
         # Execute quiz generator
@@ -290,7 +309,11 @@ Return ONLY the category name (PLAN, QUIZ, FEEDBACK, or CONVERSATION) with no ex
         # Lazy load Feedback Agent
         if not self._feedback_agent:
             self._feedback_agent = FeedbackAgent(
-                student=self.student, session=self.session, db=self.db
+                student=self.student,
+                session=self.session,
+                db=self.db,
+                llm_service=self.llm,
+                rag_service=self.rag,
             )
 
         # Execute feedback agent
@@ -323,7 +346,10 @@ Return ONLY the category name (PLAN, QUIZ, FEEDBACK, or CONVERSATION) with no ex
         # Lazy load Conversation Agent
         if not self._conversation_agent:
             self._conversation_agent = SimpleConversationAgent(
-                student=self.student, session=self.session
+                student=self.student,
+                session=self.session,
+                llm_service=self.llm,
+                rag_service=self.rag,
             )
 
         # Execute conversation agent
