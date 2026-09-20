@@ -477,9 +477,44 @@ class SimpleConversationAgent(BaseAgent):
             agent_name="SimpleConversation", student=student, session=session, **kwargs
         )
 
-    def get_system_prompt(self) -> str:
-        """Override system prompt for conversation"""
-        return f"""You are a friendly AI tutor helping {self.student.name} prepare for {self.student.exam_type}.
+    def get_system_prompt(self, reading_documents: bool = False) -> str:
+        """
+        Override system prompt for conversation.
+
+        Args:
+            reading_documents: True when the prompt carries the text of a
+                document the student uploaded. The usual Socratic framing is
+                wrong there: asked to look at their own file, a tutor told to
+                draw answers out of the student answers with a question about
+                what they would like to do with it, which is no use to
+                someone who just asked what is in it.
+        """
+        opening = (
+            f"You are a friendly AI tutor helping {self.student.name} "
+            f"prepare for {self.student.exam_type}."
+        )
+
+        if reading_documents:
+            return f"""{opening}
+
+Be encouraging, patient, and adaptive.
+
+The student is asking about material they uploaded themselves, and the text of
+it is in front of you. Work from that text:
+
+1. Say what the document actually is - its subject and how it is laid out
+2. Go through what it contains: the questions it sets, the topics it covers,
+   the definitions or figures it gives, quoting its own wording where that is
+   clearer than paraphrasing
+3. Then, and only then, suggest how to study it, keeping their weak areas in mind
+
+Do not open with a question, do not ask what they would like to do with the
+document, and do not offer help conditional on them telling you more. If the
+text you were given is too short or too garbled to describe, say plainly what
+you can see of it and what appears to be missing rather than filling the gap
+with generalities."""
+
+        return f"""{opening}
 
 Be encouraging, patient, and adaptive. Use the Socratic method when appropriate -
 guide students to discover answers rather than just providing them.
@@ -509,9 +544,10 @@ When answering questions:
         # Step 2: If they are asking about their own upload, read it directly.
         # Similarity search cannot answer "what is in the file I gave you".
         uploaded_files = ""
+        document_text = ""
         if refers_to_uploaded_material(user_input):
             uploaded_files = self.describe_student_documents()
-            document_text = self.read_student_documents(limit=3)
+            document_text = self.read_student_documents(limit=6)
             if document_text:
                 context = f"{document_text}\n\n{context}" if context else document_text
 
@@ -522,7 +558,19 @@ When answering questions:
             f"\nDocuments this student has uploaded: {uploaded_files}" if uploaded_files else ""
         )
 
-        # Step 4: Generate response
+        # Step 4: Generate response. Having the document is not enough on its
+        # own - told only that it may use the text, the model would
+        # acknowledge the upload and ask what to do with it. Reading it out is
+        # the thing being asked for, so say so.
+        if document_text:
+            instruction = """Answer from the student's own document above. Start with what it
+actually says: its subject, how it is organised, and the specific questions or
+points it contains. Then suggest how to work through it, bearing their weak
+areas in mind. Do not ask what they would like to do with the document."""
+        else:
+            instruction = """Provide a helpful, educational response. If this relates to a weak
+area, offer extra support and practice suggestions."""
+
         prompt = f"""Student Context:
 {student_context}{library}
 
@@ -531,11 +579,12 @@ Relevant Knowledge:
 
 Student's Question: {user_input}
 
-Provide a helpful, educational response. If this relates to a weak area, offer extra
-support and practice suggestions. The knowledge above includes any documents this
-student uploaded, so work from it rather than asking them to send a file again."""
+{instruction}"""
 
-        response = self.generate_response(prompt)
+        response = self.generate_response(
+            prompt,
+            system_prompt=self.get_system_prompt(reading_documents=bool(document_text)),
+        )
 
         # Step 4: Update state
         self.state.update("last_query", user_input)
