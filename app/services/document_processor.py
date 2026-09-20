@@ -175,9 +175,9 @@ class DocumentProcessor:
         try:
             doc = docx.Document(file_path)
 
-            parts = self._docx_section_text(doc, header=True)
+            parts = self._docx_header_text(doc)
             parts.extend(self._docx_body_text(doc))
-            parts.extend(self._docx_section_text(doc, header=False))
+            parts.extend(self._docx_footer_text(doc))
 
             return "\n\n".join(parts)
 
@@ -217,31 +217,46 @@ class DocumentProcessor:
 
         return rows
 
-    def _docx_section_text(self, doc, header: bool) -> List[str]:
+    def _docx_header_text(self, doc) -> List[str]:
+        """Read the header of every section"""
+        return self._docx_margin_text([section.header for section in doc.sections], "header")
+
+    def _docx_footer_text(self, doc) -> List[str]:
+        """Read the footer of every section"""
+        return self._docx_margin_text([section.footer for section in doc.sections], "footer")
+
+    def _docx_margin_text(self, areas, area_name: str) -> List[str]:
         """
-        Read the headers or the footers of every section.
+        Read a document's headers or its footers.
 
         Sections usually repeat the same header, and a document with a
         distinct first-page header carries both, so identical text is only
         kept once.
         """
         parts = []
-        for section in doc.sections:
-            area = section.header if header else section.footer
+        for area in areas:
             try:
-                for paragraph in area.paragraphs:
-                    text = paragraph.text.strip()
-                    if text and text not in parts:
-                        parts.append(text)
-                for table in area.tables:
-                    for row in self._docx_table_text(table):
-                        if row not in parts:
-                            parts.append(row)
+                parts.extend(self._docx_area_lines(area, seen=parts))
             except Exception as e:
                 # A malformed header should not cost us the document body.
-                logger.warning(f"Could not read a DOCX {'header' if header else 'footer'}: {e}")
+                logger.warning(f"Could not read a DOCX {area_name}: {e}")
 
         return parts
+
+    def _docx_area_lines(self, area, seen: List[str]) -> List[str]:
+        """Read one header or footer, skipping text already collected"""
+        lines = []
+        for paragraph in area.paragraphs:
+            text = paragraph.text.strip()
+            if text and text not in seen and text not in lines:
+                lines.append(text)
+
+        for table in area.tables:
+            for row in self._docx_table_text(table):
+                if row not in seen and row not in lines:
+                    lines.append(row)
+
+        return lines
 
     def _split_sentences(self, text: str) -> List[str]:
         """
