@@ -27,8 +27,11 @@ llm:
       advanced: "gpt-4o"      # For complex reasoning
       fallback: "gpt-3.5-turbo"
     gemini:
-      default: "gemini-2.0-flash-exp"  # Fast Gemini model
-      advanced: "gemini-1.5-pro"       # For complex tasks
+      # Google retires model names; a retired one fails every call with
+      # "404 ... is no longer available". Only `default` is read by the
+      # service - the two below are unverified and kept for reference.
+      default: "gemini-3.5-flash-lite"  # Fast Gemini model
+      advanced: "gemini-1.5-pro"        # For complex tasks
       fallback: "gemini-1.5-flash"
 
   # Generation parameters

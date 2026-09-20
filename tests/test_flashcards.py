@@ -1,5 +1,6 @@
 """Flashcard generation: the agent wiring and the route end to end."""
 
+import asyncio
 import json
 
 import pytest
@@ -125,3 +126,67 @@ async def test_agent_returns_agent_response():
     assert resp.success is True
     assert resp.data["card_count"] == 3
     assert resp.metadata["sources_used"][0]["title"] == "Calc notes.pdf"
+
+
+class FailingLLM:
+    """A provider call that fails the way a retired model does."""
+
+    async def generate(self, prompt, **kwargs):
+        raise RuntimeError(
+            "NotFound: 404 models/gemini-2.5-flash-lite is no longer available to new users."
+        )
+
+
+class MessyLLM:
+    """
+    Well-formed cards, dressed the way models actually dress them: a fenced
+    block, a capitalised type, an invented one, a string where a list belongs,
+    and brackets in the prose on both sides of the JSON.
+    """
+
+    async def generate(self, prompt, **kwargs):
+        return (
+            "Sure, here are the 2 cards [as requested]:\n"
+            "```json\n"
+            '[{"type": "Cloze", "front": "Motion is ___ to a frame", "back": "relative",'
+            ' "hints": "pick a frame", "tags": null, "difficulty": "easy"},\n'
+            ' {"type": "fill in the blank", "front": "Speed is ___ over time",'
+            ' "back": "distance", "difficulty": "medium"}]\n'
+            "```\n"
+            "Tell me if you want more [cards]!"
+        )
+
+
+def test_a_failed_generation_reports_the_provider_error(monkeypatch):
+    """It must not answer a dead provider with placeholder cards."""
+    monkeypatch.setattr(fa, "get_llm_service", lambda: FailingLLM())
+    fa._flashcard_agent = None
+
+    async def run():
+        return await fa.get_flashcard_agent().process(topic="Motion", num_cards=3)
+
+    response = asyncio.run(run())
+
+    assert response.success is False
+    assert "no longer available" in response.message
+    assert response.data is None
+
+
+def test_model_phrasing_still_yields_real_cards(monkeypatch):
+    """A capitalised or invented type used to discard the whole batch."""
+    monkeypatch.setattr(fa, "get_llm_service", lambda: MessyLLM())
+    fa._flashcard_agent = None
+
+    async def run():
+        return await fa.get_flashcard_agent().process(topic="Motion", num_cards=5)
+
+    response = asyncio.run(run())
+
+    assert response.success is True
+    cards = response.data["cards"]
+    assert len(cards) == 2
+    assert [c["type"] for c in cards] == ["cloze", "cloze"]
+    assert cards[0]["back"] == "relative"
+    assert cards[0]["hints"] == ["pick a frame"]
+    assert cards[0]["tags"] == ["motion"]
+    assert not any("[Answer about" in c["back"] for c in cards)
