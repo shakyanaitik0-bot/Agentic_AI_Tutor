@@ -23,6 +23,33 @@ from app.models.session import Session
 logger = logging.getLogger(__name__)
 
 
+# Phrases that point at something the student uploaded rather than at a
+# subject. A question like "analyse the file I uploaded" shares no words with
+# the file's contents, so similarity search has nothing to match and the tutor
+# used to answer that no file had been uploaded at all.
+_UPLOAD_REFERENCES = (
+    "uploaded",
+    "upload",
+    "my file",
+    "the file",
+    "my document",
+    "the document",
+    "my doc",
+    "the doc",
+    "my notes",
+    "my pdf",
+    "attached",
+    "attachment",
+    "library",
+)
+
+
+def refers_to_uploaded_material(text: str) -> bool:
+    """Whether a message points at the student's own uploads"""
+    lowered = text.lower()
+    return any(phrase in lowered for phrase in _UPLOAD_REFERENCES)
+
+
 @dataclass
 class AgentResponse:
     """
@@ -228,21 +255,77 @@ Provide your reasoning:"""
         Returns:
             str: Retrieved context
         """
-        # Add exam type filter if not specified
-        if metadata_filter is None:
-            metadata_filter = {"exam_type": self.student.exam_type}
+        # An explicit filter is the caller's business; leave it alone.
+        if metadata_filter is not None:
+            context, sources = self.rag.get_context(
+                query=query, top_k=top_k, metadata_filter=metadata_filter
+            )
+            self._record_sources(sources)
+            return context
 
-        # Get context from RAG
-        context, sources = self.rag.get_context(
-            query=query, top_k=top_k, metadata_filter=metadata_filter
+        # Otherwise search the student's own uploads first, then the shared
+        # material. Filtering only on exam_type used to skip their uploads
+        # entirely: RAGService scores a student-scoped search against a much
+        # lower similarity threshold, so a document that clears the bar for
+        # the person who uploaded it was being held to the general one and
+        # dropped. That is why the Library could show a document indexed
+        # while the tutor insisted nothing had been uploaded.
+        own_context, own_sources = self.rag.get_context(
+            query=query, top_k=top_k, metadata_filter={"student_id": self.student.id}
+        )
+        shared_context, shared_sources = self.rag.get_context(
+            query=query, top_k=top_k, metadata_filter={"exam_type": self.student.exam_type}
         )
 
-        # Update state with sources
+        self._record_sources(own_sources + shared_sources)
+
+        parts = [part for part in (own_context, shared_context) if part]
+        return "\n\n".join(parts)
+
+    def _record_sources(self, sources: List[Dict[str, Any]]):
+        """Note what the last retrieval matched, for the session state"""
         self.state.update(
             "last_retrieval_sources", [{"id": src["id"], "score": src["score"]} for src in sources]
         )
 
-        return context
+    def describe_student_documents(self) -> str:
+        """
+        Name the documents this student has uploaded, if any.
+
+        Returns:
+            str: A one-line summary, or "" when they have uploaded nothing
+        """
+        try:
+            documents = self.rag.list_student_documents(self.student.id)
+        except Exception as e:
+            logger.warning(f"Could not list documents for student {self.student.id}: {e}")
+            return ""
+
+        names = [doc.get("filename", "a document") for doc in documents]
+        return ", ".join(names)
+
+    def read_student_documents(self, limit: int = 3) -> str:
+        """
+        Read from the student's uploaded documents directly.
+
+        For questions about the upload itself rather than its subject, where
+        similarity search has nothing to match on.
+
+        Args:
+            limit: Maximum number of chunks to include
+
+        Returns:
+            str: The chunk text, or "" when there is nothing to read
+        """
+        try:
+            chunks = self.rag.get_student_chunks(self.student.id, limit=limit)
+        except Exception as e:
+            logger.warning(f"Could not read documents for student {self.student.id}: {e}")
+            return ""
+
+        return "\n\n".join(
+            f"From {chunk['filename']}:\n{chunk['content']}" for chunk in chunks
+        )
 
     def generate_response(
         self,
@@ -423,12 +506,25 @@ When answering questions:
         # Step 1: Retrieve relevant knowledge
         context = self.retrieve_knowledge(user_input, top_k=3)
 
-        # Step 2: Get student context
+        # Step 2: If they are asking about their own upload, read it directly.
+        # Similarity search cannot answer "what is in the file I gave you".
+        uploaded_files = ""
+        if refers_to_uploaded_material(user_input):
+            uploaded_files = self.describe_student_documents()
+            document_text = self.read_student_documents(limit=3)
+            if document_text:
+                context = f"{document_text}\n\n{context}" if context else document_text
+
+        # Step 3: Get student context
         student_context = self.get_student_context()
 
-        # Step 3: Generate response
+        library = (
+            f"\nDocuments this student has uploaded: {uploaded_files}" if uploaded_files else ""
+        )
+
+        # Step 4: Generate response
         prompt = f"""Student Context:
-{student_context}
+{student_context}{library}
 
 Relevant Knowledge:
 {context}
@@ -436,7 +532,8 @@ Relevant Knowledge:
 Student's Question: {user_input}
 
 Provide a helpful, educational response. If this relates to a weak area, offer extra
-support and practice suggestions."""
+support and practice suggestions. The knowledge above includes any documents this
+student uploaded, so work from it rather than asking them to send a file again."""
 
         response = self.generate_response(prompt)
 
