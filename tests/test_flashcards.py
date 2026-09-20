@@ -138,11 +138,15 @@ class FailingLLM:
 
 
 class MessyLLM:
-    """Well-formed cards, dressed the way models actually dress them."""
+    """
+    Well-formed cards, dressed the way models actually dress them: a fenced
+    block, a capitalised type, an invented one, a string where a list belongs,
+    and brackets in the prose on both sides of the JSON.
+    """
 
     async def generate(self, prompt, **kwargs):
         return (
-            "Sure, here are your cards:\n"
+            "Sure, here are the 2 cards [as requested]:\n"
             "```json\n"
             '[{"type": "Cloze", "front": "Motion is ___ to a frame", "back": "relative",'
             ' "hints": "pick a frame", "tags": null, "difficulty": "easy"},\n'

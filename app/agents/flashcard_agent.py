@@ -17,11 +17,10 @@ Supports multiple flashcard types:
 import asyncio
 import json
 import logging
-import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterator, List, Optional
 
 from app.agents.base_agent import AgentResponse
 from app.services.llm_service import get_llm_service
@@ -48,17 +47,62 @@ _TYPE_ALIASES = {
 }
 
 
-def _first_json_array(text: str) -> Optional[str]:
+# How many candidate arrays to try before giving up on a response. Prose can
+# hold several brackets; this keeps a pathological reply from being rescanned
+# once per bracket.
+_MAX_ARRAY_CANDIDATES = 5
+
+
+def _fenced_block(text: str) -> Optional[str]:
     """
-    Return the first complete top-level JSON array in `text`, or None.
+    Return the body of the first ``` fence in `text`, or None.
+
+    Done with str.find rather than a regex on purpose: a pattern like
+    ```(?:json)?\s*(.+?)``` lets \s* and .+? match the same whitespace, so an
+    unterminated fence backtracks quadratically over the whole reply. This is
+    model output, which is exactly the input you do not want to trust to be
+    well-formed.
+    """
+    opened = text.find("```")
+    if opened == -1:
+        return None
+
+    # Skip the rest of the fence line, which carries the language tag.
+    body = text.find("\n", opened)
+    if body == -1:
+        return None
+
+    closed = text.find("```", body)
+    return text[body + 1:closed] if closed != -1 else text[body + 1:]
+
+
+def _json_arrays(text: str) -> Iterator[str]:
+    """
+    Yield each complete top-level JSON array in `text`, outermost first.
+
+    A model can open with prose containing a bracket, so the first array found
+    is not always the cards; the caller tries them in turn.
+    """
+    searched_from = 0
+    for _ in range(_MAX_ARRAY_CANDIDATES):
+        start = text.find("[", searched_from)
+        if start == -1:
+            return
+
+        array = _complete_array(text, start)
+        if array is not None:
+            yield array
+
+        searched_from = start + 1
+
+
+def _complete_array(text: str, start: int) -> Optional[str]:
+    """
+    Return the array beginning at `start` once its closing bracket is found.
 
     Scans for the bracket that closes the one it opened, so trailing prose
     cannot extend the match.
     """
-    start = text.find("[")
-    if start == -1:
-        return None
-
     depth = 0
     in_string = False
     escaped = False
@@ -457,21 +501,18 @@ Generate exactly {num_cards} cards as a JSON array:"""
         first bracket to the last one in the whole reply, so a single bracket
         in that closing remark broke the parse.
         """
-        fenced = re.search(r"```(?:json)?\s*(.+?)```", response, re.DOTALL)
-        candidates = [fenced.group(1)] if fenced else []
+        fenced = _fenced_block(response)
+        candidates = [fenced] if fenced else []
         candidates.append(response)
 
         for text in candidates:
-            array = _first_json_array(text)
-            if array is None:
-                continue
-            try:
-                cards_data = json.loads(array)
-            except json.JSONDecodeError as e:
-                logger.warning(f"Found a JSON array but could not parse it: {e}")
-                continue
-            if isinstance(cards_data, list):
-                return cards_data[:num_cards]
+            for array in _json_arrays(text):
+                try:
+                    cards_data = json.loads(array)
+                except json.JSONDecodeError:
+                    continue
+                if isinstance(cards_data, list):
+                    return cards_data[:num_cards]
 
         logger.warning(f"No JSON array in the model response for '{topic}'")
         return []
