@@ -15,20 +15,85 @@ Supports multiple flashcard types:
 """
 
 import asyncio
-import logging
 import json
+import logging
 import re
-from typing import List, Dict, Any, Optional
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+from typing import Any, Dict, List, Optional
 
 from app.agents.base_agent import AgentResponse
 from app.services.llm_service import get_llm_service
 from app.services.unified_retrieval_service import get_unified_retrieval_service
-from app.core.config import settings
 
 logger = logging.getLogger(__name__)
+
+
+# What models write instead of the bare enum value. The prompt lists the types
+# with capitalised labels ("Cloze: ..."), so they come back that way, and a
+# model asked for a fill-in-the-blank card will invent a name for it. Keeping
+# this outside the enum keeps it from becoming a member of it.
+_TYPE_ALIASES = {
+    "fill_in_the_blank": "cloze",
+    "fill_in_blank": "cloze",
+    "blank": "cloze",
+    "qa": "basic",
+    "question": "basic",
+    "question_answer": "basic",
+    "term": "definition",
+    "worked_example": "example",
+    "problem": "example",
+    "equation": "formula",
+}
+
+
+def _first_json_array(text: str) -> Optional[str]:
+    """
+    Return the first complete top-level JSON array in `text`, or None.
+
+    Scans for the bracket that closes the one it opened, so trailing prose
+    cannot extend the match.
+    """
+    start = text.find("[")
+    if start == -1:
+        return None
+
+    depth = 0
+    in_string = False
+    escaped = False
+
+    for i, char in enumerate(text[start:], start):
+        if in_string:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+            continue
+
+        if char == '"':
+            in_string = True
+        elif char in "[{":
+            depth += 1
+        elif char in "]}":
+            depth -= 1
+            if depth == 0:
+                return text[start:i + 1]
+
+    return None
+
+
+def _string_list(value: Any) -> List[str]:
+    """Coerce a hints/tags field to a list of strings, whatever the model sent."""
+    if value is None:
+        return []
+    if isinstance(value, str):
+        return [value] if value.strip() else []
+    if isinstance(value, (list, tuple)):
+        return [str(item).strip() for item in value if str(item).strip()]
+    return [str(value)]
 
 
 class FlashcardType(Enum):
@@ -39,6 +104,26 @@ class FlashcardType(Enum):
     CONCEPT = "concept"  # Concept explanation
     FORMULA = "formula"  # Formula/equation card
     EXAMPLE = "example"  # Worked example
+
+    @classmethod
+    def coerce(cls, value: Any) -> "FlashcardType":
+        """
+        Read a card type from model output.
+
+        Never raises: an unrecognised type costs that one card its type, not
+        the whole batch.
+        """
+        if isinstance(value, cls):
+            return value
+
+        key = str(value or "").strip().lower().replace(" ", "_").replace("-", "_")
+        key = _TYPE_ALIASES.get(key, key)
+
+        try:
+            return cls(key)
+        except ValueError:
+            logger.debug(f"Unrecognised flashcard type {value!r}, treating it as basic")
+            return cls.BASIC
 
 
 @dataclass
@@ -323,69 +408,73 @@ Generate exactly {num_cards} cards as a JSON array:"""
             if citations:
                 citation_text = f"Sources: {', '.join([c.title for c in citations[:3]])}"
 
-            for i, card_data in enumerate(cards_data):
-                card_type = FlashcardType(card_data.get("type", "basic"))
+            for card_data in cards_data:
+                if not isinstance(card_data, dict):
+                    logger.warning(f"Skipping a card that is not an object: {card_data!r}")
+                    continue
+
+                front = str(card_data.get("front") or "").strip()
+                back = str(card_data.get("back") or "").strip()
+                if not front or not back:
+                    logger.warning(f"Skipping a card with an empty side: {card_data!r}")
+                    continue
+
                 cards.append(Flashcard(
                     id=f"card_{uuid.uuid4().hex[:8]}",
-                    card_type=card_type,
-                    front=card_data.get("front", ""),
-                    back=card_data.get("back", ""),
+                    card_type=FlashcardType.coerce(card_data.get("type")),
+                    front=front,
+                    back=back,
                     topic=topic,
-                    difficulty=card_data.get("difficulty", difficulty),
-                    hints=card_data.get("hints", []),
-                    tags=card_data.get("tags", [topic.lower()]),
+                    difficulty=str(card_data.get("difficulty") or difficulty),
+                    hints=_string_list(card_data.get("hints")),
+                    tags=_string_list(card_data.get("tags")) or [topic.lower()],
                     source_citation=citation_text
                 ))
+
+            if not cards:
+                raise ValueError(
+                    f"The model returned no usable flashcards for '{topic}'. "
+                    f"Response began: {response[:200]!r}"
+                )
 
             return cards
 
         except Exception as e:
-            logger.error(f"LLM flashcard generation failed: {e}")
-            # Return fallback cards
-            return self._generate_fallback_cards(topic, num_cards, difficulty)
+            # Deliberately no placeholder cards here. This used to answer a
+            # failed generation with "[Answer about <topic>]" cards and report
+            # success, so a dead API key or a retired model looked like a
+            # working deck of nonsense. Let it surface instead: process()
+            # turns it into an AgentResponse the route reports.
+            logger.error(f"LLM flashcard generation failed: {e}", exc_info=True)
+            raise
 
     def _parse_cards_json(self, response: str, num_cards: int, topic: str) -> List[Dict]:
-        """Parse JSON cards from LLM response"""
-        try:
-            # Try to find JSON array in response
-            json_match = re.search(r'\[[\s\S]*\]', response)
-            if json_match:
-                cards_data = json.loads(json_match.group())
-                if isinstance(cards_data, list):
-                    return cards_data[:num_cards]
-        except json.JSONDecodeError:
-            pass
+        """
+        Pull the card array out of a model response.
 
-        # Fallback parsing
-        logger.warning("Could not parse LLM response as JSON, using fallback")
+        Models wrap the JSON in a ```json fence, introduce it with a sentence,
+        or add a closing remark after it. A greedy [...] match ran from the
+        first bracket to the last one in the whole reply, so a single bracket
+        in that closing remark broke the parse.
+        """
+        fenced = re.search(r"```(?:json)?\s*(.+?)```", response, re.DOTALL)
+        candidates = [fenced.group(1)] if fenced else []
+        candidates.append(response)
+
+        for text in candidates:
+            array = _first_json_array(text)
+            if array is None:
+                continue
+            try:
+                cards_data = json.loads(array)
+            except json.JSONDecodeError as e:
+                logger.warning(f"Found a JSON array but could not parse it: {e}")
+                continue
+            if isinstance(cards_data, list):
+                return cards_data[:num_cards]
+
+        logger.warning(f"No JSON array in the model response for '{topic}'")
         return []
-
-    def _generate_fallback_cards(self, topic: str, num_cards: int, difficulty: str) -> List[Flashcard]:
-        """Generate basic fallback cards when LLM fails"""
-        import uuid
-        cards = []
-
-        fallback_prompts = [
-            ("What is", "the definition of"),
-            ("Explain", "the concept of"),
-            ("What are", "the key characteristics of"),
-            ("How does", "work"),
-            ("Why is", "important"),
-        ]
-
-        for i in range(min(num_cards, len(fallback_prompts))):
-            prefix, suffix = fallback_prompts[i]
-            cards.append(Flashcard(
-                id=f"card_{uuid.uuid4().hex[:8]}",
-                card_type=FlashcardType.BASIC,
-                front=f"{prefix} {topic} {suffix}?",
-                back=f"[Answer about {topic}]",
-                topic=topic,
-                difficulty=difficulty,
-                tags=[topic.lower()]
-            ))
-
-        return cards
 
     def generate_from_weak_areas(
         self,
@@ -416,7 +505,6 @@ Generate exactly {num_cards} cards as a JSON array:"""
                     )
                 )
                 if response.success and response.data:
-                    from dataclasses import asdict
                     deck = FlashcardDeck(
                         id=response.data["id"],
                         name=response.data["name"],

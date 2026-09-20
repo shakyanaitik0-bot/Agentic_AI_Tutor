@@ -4,14 +4,15 @@ Unified interface for OpenAI and Gemini APIs with automatic retry and error hand
 """
 
 import asyncio
-import time
 import logging
-from typing import List, Dict, Optional, Any, Literal
-from openai import OpenAI
+import time
+from typing import Any, Dict, List, Literal, Optional
+
 import google.generativeai as genai
-from google.generativeai.types import GenerationConfig
 import tiktoken
 from dotenv import load_dotenv
+from google.generativeai.types import GenerationConfig
+from openai import OpenAI
 
 load_dotenv()
 
@@ -83,16 +84,23 @@ class LLMService:
 
     def _get_default_model(self) -> str:
         """
-        Get default model name for the provider.
+        Get the model name for this provider.
+
+        Reads llm.models.<provider>.default from config.yaml, which is where
+        the model is meant to be configured. The literals below are only a
+        last resort for a missing key: hardcoding them here is what let the
+        configured value go stale unnoticed while the service kept calling a
+        retired model.
 
         Returns:
-            str: Default model name
+            str: Model name
         """
-        defaults = {
+        last_resort = {
             "openai": "gpt-4o-mini",  # Fast and cost-effective
-            "gemini": "gemini-2.5-flash-lite",  # Fast Gemini model
+            "gemini": "gemini-3.5-flash-lite",  # Fast Gemini model
         }
-        return defaults.get(self.provider, "gpt-4o-mini")
+        configured = settings.get(f"llm.models.{self.provider}.default")
+        return configured or last_resort.get(self.provider, "gpt-4o-mini")
 
     def _init_client(self) -> None:
         """Initialize the provider-specific API client"""
@@ -205,7 +213,7 @@ class LLMService:
         Returns:
             str: Generated response
         """
-        from google.generativeai.types import HarmCategory, HarmBlockThreshold
+        from google.generativeai.types import HarmBlockThreshold, HarmCategory
 
         # Convert OpenAI-style messages to Gemini format
         gemini_messages = self._convert_to_gemini_format(messages)
