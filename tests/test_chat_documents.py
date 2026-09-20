@@ -35,13 +35,15 @@ class StubRAG:
 
 
 class CapturingLLM:
-    """Records the prompt so the test can see what the tutor was told."""
+    """Records the prompts so the test can see what the tutor was told."""
 
     def __init__(self):
         self.prompts = []
+        self.system_prompts = []
 
     def chat_completion(self, messages, **kwargs):
         self.prompts.append(messages[-1]["content"])
+        self.system_prompts.append(kwargs.get("system_prompt", ""))
         return "Here is what your assignment covers..."
 
 
@@ -113,3 +115,56 @@ def test_an_ordinary_question_does_not_read_the_library(agent):
 )
 def test_upload_references(message, expected):
     assert refers_to_uploaded_material(message) is expected
+
+
+def test_the_tutor_is_told_to_present_the_document(agent):
+    """
+    The second half of the same complaint: with the document in hand the tutor
+    still answered "how would you like to use these documents today?". The
+    Socratic framing was telling it to draw the answer out of the student, so
+    a request to read a file came back as a question about the file.
+    """
+    conversation, _, llm = agent
+
+    conversation.execute("analyse the file that i uploaded")
+
+    system_prompt = llm.system_prompts[-1]
+    assert "Socratic" not in system_prompt, "still told to answer with questions"
+    assert "Do not open with a question" in system_prompt
+    assert "Do not ask what they would like to do with the document" in llm.prompts[-1]
+
+
+def test_an_ordinary_question_keeps_the_socratic_prompt(agent):
+    """Guiding a student through a concept is still the right default."""
+    conversation, _, llm = agent
+
+    conversation.execute("what is Newton's second law")
+
+    assert "Socratic" in llm.system_prompts[-1]
+    assert "Do not open with a question" not in llm.system_prompts[-1]
+
+
+def test_documents_are_read_in_order(test_db):
+    """
+    Chunk order out of the vector store is arbitrary, so a summary would have
+    described the document with its pages shuffled.
+    """
+    from app.services.rag_service import RAGService
+
+    class ShuffledIndex:
+        def query(self, **kwargs):
+            return {
+                "matches": [
+                    {"metadata": {"content": "third", "filename": "a.docx", "chunk_index": 2}},
+                    {"metadata": {"content": "first", "filename": "a.docx", "chunk_index": 0}},
+                    {"metadata": {"content": "second", "filename": "a.docx", "chunk_index": 1}},
+                ]
+            }
+
+    rag = RAGService.__new__(RAGService)
+    rag.index = ShuffledIndex()
+    rag.dimension = 3
+
+    contents = [chunk["content"] for chunk in rag.get_student_chunks("s1", limit=5)]
+
+    assert contents == ["first", "second", "third"]

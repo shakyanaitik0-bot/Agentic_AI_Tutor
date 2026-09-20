@@ -156,7 +156,15 @@ class DocumentProcessor:
             raise ValueError(f"Could not read text file: {str(e)}")
 
     def _extract_docx(self, file_path: str) -> str:
-        """Extract text from DOCX file"""
+        """
+        Extract text from DOCX file.
+
+        Covers the body in document order, the contents of every table, and
+        the headers and footers. ``doc.paragraphs`` alone sees none of the
+        table text, so a worksheet or assignment laid out as a table - which
+        is how most of them are written - used to come through as nothing but
+        its cover lines.
+        """
         if not self._docx_available:
             raise RuntimeError(
                 "DOCX support not available. Install python-docx: pip install python-docx"
@@ -166,12 +174,128 @@ class DocumentProcessor:
 
         try:
             doc = docx.Document(file_path)
-            paragraphs = [para.text for para in doc.paragraphs if para.text.strip()]
-            return "\n\n".join(paragraphs)
+
+            parts = self._docx_header_text(doc)
+            parts.extend(self._docx_body_text(doc))
+            parts.extend(self._docx_footer_text(doc))
+
+            return "\n\n".join(parts)
 
         except Exception as e:
             logger.error(f"Error extracting DOCX {file_path}: {e}")
             raise ValueError(f"Could not read DOCX file: {str(e)}")
+
+    def _docx_body_text(self, doc) -> List[str]:
+        """Read a document body in order, interleaving paragraphs and tables"""
+        from docx.oxml.ns import qn
+        from docx.table import Table
+        from docx.text.paragraph import Paragraph
+
+        parts = []
+        for child in doc.element.body.iterchildren():
+            if child.tag == qn("w:p"):
+                text = Paragraph(child, doc).text.strip()
+                if text:
+                    parts.append(text)
+            elif child.tag == qn("w:tbl"):
+                parts.extend(self._docx_table_text(Table(child, doc)))
+
+        return parts
+
+    def _docx_table_text(self, table) -> List[str]:
+        """Read a table one row at a time, so the columns stay together"""
+        rows = []
+        for row in table.rows:
+            cells = []
+            for cell in row.cells:
+                cell_text = " ".join(cell.text.split())
+                if cell_text and cell_text not in cells:
+                    # A merged cell is repeated across the span it covers.
+                    cells.append(cell_text)
+            if cells:
+                rows.append(" | ".join(cells))
+
+        return rows
+
+    def _docx_header_text(self, doc) -> List[str]:
+        """Read the header of every section"""
+        return self._docx_margin_text([section.header for section in doc.sections], "header")
+
+    def _docx_footer_text(self, doc) -> List[str]:
+        """Read the footer of every section"""
+        return self._docx_margin_text([section.footer for section in doc.sections], "footer")
+
+    def _docx_margin_text(self, areas, area_name: str) -> List[str]:
+        """
+        Read a document's headers or its footers.
+
+        Sections usually repeat the same header, and a document with a
+        distinct first-page header carries both, so identical text is only
+        kept once.
+        """
+        parts = []
+        for area in areas:
+            try:
+                parts.extend(self._docx_area_lines(area, seen=parts))
+            except Exception as e:
+                # A malformed header should not cost us the document body.
+                logger.warning(f"Could not read a DOCX {area_name}: {e}")
+
+        return parts
+
+    def _docx_area_lines(self, area, seen: List[str]) -> List[str]:
+        """Read one header or footer, skipping text already collected"""
+        lines = []
+        for paragraph in area.paragraphs:
+            text = paragraph.text.strip()
+            if text and text not in seen and text not in lines:
+                lines.append(text)
+
+        for table in area.tables:
+            for row in self._docx_table_text(table):
+                if row not in seen and row not in lines:
+                    lines.append(row)
+
+        return lines
+
+    def _split_sentences(self, text: str) -> List[str]:
+        """
+        Split text into pieces no larger than one chunk.
+
+        Lines are split before sentences so that table rows, which rarely end
+        in a full stop, do not run together into a single oversized segment.
+        """
+        segments = []
+        for line in text.splitlines():
+            for sentence in line.split(". "):
+                sentence = sentence.strip()
+                if not sentence:
+                    continue
+                if len(sentence) <= self.chunk_size:
+                    segments.append(sentence)
+                else:
+                    segments.extend(self._split_on_words(sentence))
+
+        return segments
+
+    def _split_on_words(self, sentence: str) -> List[str]:
+        """Break a segment longer than a chunk apart at word boundaries"""
+        pieces = []
+        current = []
+        size = 0
+
+        for word in sentence.split():
+            # +1 for the space that will rejoin them.
+            if size + len(word) + 1 > self.chunk_size and current:
+                pieces.append(" ".join(current))
+                current, size = [], 0
+            current.append(word)
+            size += len(word) + 1
+
+        if current:
+            pieces.append(" ".join(current))
+
+        return pieces
 
     def _chunk_text(self, text: str) -> List[str]:
         """
@@ -185,8 +309,7 @@ class DocumentProcessor:
         Returns:
             List of text chunks
         """
-        # Simple sentence splitting (can be improved with NLTK)
-        sentences = text.replace("\n", " ").split(". ")
+        sentences = self._split_sentences(text)
         chunks = []
         current_chunk = []
         current_size = 0

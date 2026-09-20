@@ -500,6 +500,16 @@ class RAGService:
                         "metadata": metadata,
                     })
 
+            # The scores are meaningless here, so the order they arrive in is
+            # arbitrary. Put the document back together in reading order,
+            # otherwise a tutor asked to summarise it sees the pages shuffled.
+            chunks.sort(
+                key=lambda chunk: (
+                    chunk["filename"],
+                    chunk["metadata"].get("chunk_index", 0),
+                )
+            )
+
             return chunks
 
         except Exception as e:
