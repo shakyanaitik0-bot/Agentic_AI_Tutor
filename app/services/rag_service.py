@@ -461,6 +461,51 @@ class RAGService:
         # Upload to vector store
         return self.upload_documents(documents)
 
+    def get_student_chunks(self, student_id: str, limit: int = 5) -> List[Dict[str, Any]]:
+        """
+        Fetch a student's own document chunks, without scoring them.
+
+        `search` answers "which chunks look like this question", which cannot
+        serve a question that is *about* the upload rather than its subject -
+        "analyse the file I uploaded" shares no words with the file's
+        contents, so every chunk scores near zero and is filtered out. This
+        answers the other question: "what did this student upload".
+
+        Args:
+            student_id: Student ID
+            limit: Maximum number of chunks to return
+
+        Returns:
+            List of chunk dicts with content and metadata
+        """
+        try:
+            # Same approach as list_student_documents: Pinecone has no list-by
+            # -metadata, so a zero vector plus a filter stands in for one. The
+            # scores it returns are meaningless, which is the point here.
+            results = self.index.query(
+                vector=[0.0] * self.dimension,
+                filter={"student_id": student_id},
+                top_k=max(limit, 1),
+                include_metadata=True,
+            )
+
+            chunks = []
+            for match in results.get("matches", []):
+                metadata = match.get("metadata", {})
+                content = metadata.get("content", "")
+                if content:
+                    chunks.append({
+                        "content": content,
+                        "filename": metadata.get("filename", "uploaded document"),
+                        "metadata": metadata,
+                    })
+
+            return chunks
+
+        except Exception as e:
+            logger.error(f"Error fetching chunks for student {student_id}: {e}")
+            return []
+
     def list_student_documents(self, student_id: str) -> List[Dict[str, Any]]:
         """
         List all documents uploaded by a student.
